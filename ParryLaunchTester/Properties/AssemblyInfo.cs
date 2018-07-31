@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("Parry")]
-[assembly: AssemblyDescription("An RPG framework with hooks")]
+[assembly: AssemblyTitle("ParryLaunchTester")]
+[assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("Parry")]
-[assembly: AssemblyCopyright("Copyright © Joshua Lamusga 2018")]
+[assembly: AssemblyProduct("ParryLaunchTester")]
+[assembly: AssemblyCopyright("Copyright ©  2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -20,7 +20,7 @@ using System.Runtime.InteropServices;
 [assembly: ComVisible(false)]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
-[assembly: Guid("7ec02c5b-b9e1-4f1b-970d-b8e99906bf13")]
+[assembly: Guid("305068bd-a53d-4275-b462-a8f2cea9cbe6")]
 
 // Version information for an assembly consists of the following four values:
 //
