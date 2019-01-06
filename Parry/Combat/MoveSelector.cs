@@ -62,14 +62,31 @@ namespace Parry.Combat
 
         #region Constructors
         /// <summary>
-        /// Creates a new move selection object.
+        /// Creates a new move selector with the default move and action, which
+        /// is set to be automatically selected.
         /// </summary>
         public MoveSelector()
         {
             GetMotive = null;
-            GetMove = null;
+            GetMove = new Func<List<List<Combatant>>, List<Move>, Move>((a, b) =>
+            {
+                return Moves.FirstOrDefault();
+            });
             Motive = Constants.Motives.DamageHealth;
-            Moves = new List<Move>();
+            Moves = new List<Move>() { new Move() };
+            TurnFractionLeft = 1;
+        }
+
+        /// <summary>
+        /// Creates a new move selector with the given list of moves and
+        /// initializes GetMove to select the first one.
+        /// </summary>
+        public MoveSelector(List<Move> moves, Func<List<List<Combatant>>, List<Move>, Move> getMove)
+        {
+            GetMotive = null;
+            GetMove = getMove;
+            Motive = Constants.Motives.DamageHealth;
+            Moves = moves;
             TurnFractionLeft = 1;
         }
 
@@ -100,31 +117,33 @@ namespace Parry.Combat
         /// </param>
         public Move Perform(List<List<Combatant>> combatHistory)
         {
-            //Gets the motive.
+            List<Move> availableMoves = Moves;
+
+            // Gets the motive.
             if (GetMotive != null)
             {
                 Motive = GetMotive(combatHistory);
-            }
 
-            throw new NotImplementedException("Get moves from items and such."); //TODO
-
-            //Filters out non-matching moves.
-            List<Move> availableMoves = Moves
-                .Where((move) => {
-                    return (move.Motives.Contains(Motive) &&
+                // Filters out non-matching moves.
+                availableMoves = Moves.Where((move) =>
+                {
+                    return (move.Motives.Count == 0 || move.Motives.Contains(Motive)) &&
                         move.IsMoveEnabled &&
                         move.Cooldown == 0 &&
-                        move.UsesPerTurnProgress < move.UsesPerTurn);
+                        move.UsesPerTurnProgress < move.UsesPerTurn;
                 })
                 .ToList();
+            }
 
-            //Gets the move.
+            //TODO: Get moves from items.
+
+            // Gets the move.
             if (GetMove != null)
             {
                 return GetMove(combatHistory, availableMoves);
             }
 
-            return null;
+            return Moves.FirstOrDefault();
         }
         #endregion
     }

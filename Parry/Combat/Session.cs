@@ -26,8 +26,7 @@ namespace Parry.Combat
         private List<List<Combatant>> combatants;
 
         /// <summary>
-        /// Stores current combatants in turn order. Provides granularity
-        /// to either progress round-by-round or turn-by-turn.
+        /// Stores current combatants in turn order.
         /// </summary>
         private List<Combatant> combatantsInOrder;
 
@@ -39,7 +38,7 @@ namespace Parry.Combat
         /// <summary>
         /// These characters are removed after finishing any character's moves.
         /// </summary>
-        private List<Combatant> combatantsToRemove;
+        private List<Character> combatantsToRemove;
 
         /// <summary>
         /// These characters are added after finishing any character's moves.
@@ -118,6 +117,30 @@ namespace Parry.Combat
             get;
             set;
         }
+
+        /// <summary>
+        /// When enabled, combatants with the same speed will take their turns
+        /// in order without flushing the add and remove queues between. This
+        /// allows e.g. two combatants to deal lethal damage to each other.
+        /// False by default.
+        /// </summary>
+        public bool SimultaneousTurnsEnabled
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// The number of previous rounds to store in memory, which enables
+        /// users to create AI behavior based on previous combatant behaviors
+        /// and performances. Can't be negative.
+        /// 10 by default.
+        /// </summary>
+        public int RoundHistoryLimit
+        {
+            get;
+            set;
+        }
         #endregion
 
         #region Events
@@ -173,7 +196,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// The event raised after a character is added to combat.
-        /// First argument is the character that was added.
+        /// First argument is the combatant that was added.
         /// </summary>
         public event Action<Combatant> CharacterAdded;
 
@@ -181,7 +204,7 @@ namespace Parry.Combat
         /// The event raised after a character is removed from combat.
         /// First argument is the character that was removed.
         /// </summary>
-        public event Action<Combatant> CharacterRemoved;
+        public event Action<Character> CharacterRemoved;
 
         /// <summary>
         /// The event raised when a character enters a zone.
@@ -218,6 +241,8 @@ namespace Parry.Combat
             FreeForAllEnabled = false;
             SpeedCarriesOver = false;
             ExtraTurnsEnabled = false;
+            SimultaneousTurnsEnabled = false;
+            RoundHistoryLimit = 10;
         }
         #endregion
 
@@ -233,20 +258,23 @@ namespace Parry.Combat
                 return new List<Combatant>();
             }
 
-            return combatants[0].OrderBy(o =>
+            combatants[0].ForEach(o =>
             {
-                int speed = o.WrappedChar.MoveSelectBehavior.Perform(combatants).MoveSpeed
-                    + o.WrappedChar.Stats.MoveSpeed.Data;
+                o.Speed = o.WrappedChar.Stats.MoveSpeed.Data
+                    + o.WrappedChar.MoveSelectBehavior.Perform(combatants).MoveSpeed;
+            });
 
+            int minSpeed = combatants[0].Min(o => o.Speed);
+            combatants[0].ForEach(o =>
+            {
                 if (SpeedCarriesOver)
                 {
-                    speed += o.AccumulatedSpeed;
-                    o.AccumulatedSpeed = speed;
+                    o.Speed += o.AccumulatedSpeed - minSpeed;
+                    o.AccumulatedSpeed = o.Speed;
                 }
+            });
 
-                return speed;
-            })
-                .Reverse().ToList();
+            return combatants[0].OrderByDescending(o => o.Speed).ToList();
         }
 
         /// <summary>
@@ -260,31 +288,53 @@ namespace Parry.Combat
             List<Combatant> targets,
             Move chosenMove)
         {
-            chosenMove.Perform(combatants[0], targets, chosenMove.PerformAction);
+            chosenMove.Perform(combatant, combatants[0], targets);
         }
 
         /// <summary>
-        /// Executes movement logic for the active combatant.
+        /// Executes pre-move movement logic for the active combatant.
         /// This is the third step in executing a turn.
         /// </summary>
         /// <param name="session">
         /// An active combat session.
         /// </param>
-        private Tuple<float, float> PerformMovement(Move chosenMove)
+        private Tuple<float, float> PerformMovementBefore(Move chosenMove)
         {
-            if (!combatant.WrappedChar.CombatMovementEnabled.Data)
+            if (!combatant.WrappedChar.CombatMovementEnabled.Data ||
+                !combatant.WrappedChar.CombatMovementBeforeEnabled.Data)
             {
-                return new Tuple<float, float>(0, 0);
+                return combatant.WrappedChar.Location.Data;
             }
 
-            if (chosenMove.MovementBehavior == null)
+            if (chosenMove.MovementBeforeBehavior == null)
             {
-                //return combatant.DefaultMovementBehavior.Data.Perform();
-                throw new NotImplementedException("Must implement movement behaviors."); //TODO: remove and uncomment line above.
+                return combatant.WrappedChar.DefaultMovementBeforeBehavior.Perform(combatants[0], combatant);
             }
 
-            //return chosenMove.MovementBehavior.Perform();
-            throw new NotImplementedException("Must implement movement behaviors."); //TODO: remove and uncomment line above.
+            return chosenMove.MovementBeforeBehavior.Perform(combatants[0], combatant);
+        }
+
+        /// <summary>
+        /// Executes post-move movement logic for the active combatant.
+        /// This is the third step in executing a turn.
+        /// </summary>
+        /// <param name="session">
+        /// An active combat session.
+        /// </param>
+        private Tuple<float, float> PerformMovementAfter(Move chosenMove)
+        {
+            if (!combatant.WrappedChar.CombatMovementEnabled.Data ||
+                !combatant.WrappedChar.CombatMovementAfterEnabled.Data)
+            {
+                return combatant.WrappedChar.Location.Data;
+            }
+
+            if (chosenMove.MovementAfterBehavior == null)
+            {
+                return combatant.WrappedChar.DefaultMovementAfterBehavior.Perform(combatants[0], combatant);
+            }
+
+            return chosenMove.MovementAfterBehavior.Perform(combatants[0], combatant);
         }
 
         /// <summary>
@@ -360,8 +410,21 @@ namespace Parry.Combat
 
         #region Public Methods
         /// <summary>
+        /// Queues to add the given combatant to combat. They are added as soon
+        /// as the next turn begins. Takes off the removal queue.
+        /// </summary>
+        /// <param name="combatant">
+        /// The combatant to be added to combat.
+        /// </param>
+        public void AddCharacter(Combatant combatant)
+        {
+            combatantsToAdd.Add(combatant);
+            combatantsToRemove.Remove(combatant.WrappedChar);
+        }
+
+        /// <summary>
         /// Queues to add the given character to combat. They are added as soon
-        /// as soon as the next turn begins. Takes off the removal queue.
+        /// as the next turn begins. Takes off the removal queue.
         /// </summary>
         /// <param name="newChar">
         /// The character to be added to combat.
@@ -369,7 +432,7 @@ namespace Parry.Combat
         public void AddCharacter(Character newChar)
         {
             combatantsToAdd.Add(new Combatant(newChar));
-            combatantsToRemove.Remove(new Combatant(newChar));
+            combatantsToRemove.Remove(newChar);
         }
 
         /// <summary>
@@ -432,15 +495,19 @@ namespace Parry.Combat
                 target.WrappedChar.RaiseTargeted();
             }
 
-            Tuple<float, float> movement = PerformMovement(move);
-            MovementSelected?.Invoke(movement);
-            combatant.WrappedChar.RaiseMovementSelected(movement);
+            Tuple<float, float> movementBefore = PerformMovementBefore(move);
+            MovementSelected?.Invoke(movementBefore);
+            combatant.WrappedChar.RaiseMovementBeforeSelected(movementBefore);
 
             BeforeMove?.Invoke();
             combatant.WrappedChar.RaiseBeforeMove();
             PerformMove(targets, move);
             combatant.WrappedChar.RaiseAfterMove();
             AfterMove?.Invoke();
+
+            Tuple<float, float> movementAfter = PerformMovementAfter(move);
+            MovementSelected?.Invoke(movementAfter);
+            combatant.WrappedChar.RaiseMovementBeforeSelected(movementAfter);
 
             TurnEnd?.Invoke(combatant);
             combatant.WrappedChar.RaiseTurnEnd();
@@ -454,8 +521,9 @@ namespace Parry.Combat
         /// <summary>
         /// Advances to the next round, recomputing the combatant order,
         /// storing character history and triggering round events.
+        /// Returns true if there is another round, else false.
         /// </summary>
-        public void NextRound()
+        public bool NextRound()
         {
             combatantsInOrder.Clear();
             RoundEnding?.Invoke();
@@ -470,13 +538,17 @@ namespace Parry.Combat
                 }
 
                 combatants.Insert(1, previousRound);
+                if (combatants.Count - 1 > RoundHistoryLimit)
+                {
+                    combatants.RemoveAt(combatants.Count - 1);
+                }
 
                 //Removes characters.
                 for (int i = 0; i < combatantsToRemove.Count; i++)
                 {
                     CharacterRemoved?.Invoke(combatantsToRemove[i]);
-                    combatantsToRemove[i].WrappedChar.RaiseCharacterRemoved();
-                    combatants[0].Remove(combatantsToRemove[i]);
+                    combatantsToRemove[i].RaiseCharacterRemoved();
+                    combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
                 }
             }
             else
@@ -494,24 +566,91 @@ namespace Parry.Combat
 
             combatantsToRemove.Clear();
             combatantsToAdd.Clear();
-            RoundStarting?.Invoke();
 
-            combatantsInOrder = GetTurnOrder();
+            if (combatants[0].Count != 0 ||
+                (combatants[0].Any(o => o.WrappedChar.TeamID != combatants[0][0].WrappedChar.TeamID)))
+            {
+                RoundStarting?.Invoke();
+                combatantsInOrder = GetTurnOrder();
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
         /// Advances to the next turn, or next round if on the last combatant.
+        /// Returns true if there is another turn, else false.
         /// </summary>
-        public void NextTurn()
+        public bool NextTurn()
         {
             int indexOfCombatant = combatantsInOrder.IndexOf(combatant);
             if (indexOfCombatant == combatantsInOrder.Count - 1)
             {
-                NextRound();
-                return;
+                return NextRound();
+            }
+
+            if (!SimultaneousTurnsEnabled ||
+                combatantsInOrder[indexOfCombatant].Speed >
+                combatantsInOrder[indexOfCombatant + 1].Speed)
+            {
+                for (int i = 0; i < combatants.Count; i++)
+                {
+                    if (combatants[0][i].CurrentHealth.Data <= 0 &&
+                        combatants[0][i].WrappedChar.Stats.HealthStatus.Data ==
+                        Constants.HealthStatuses.RemoveAtZero)
+                    {
+                        combatantsToRemove.Add(combatants[0][i].WrappedChar);
+                    }
+                }
+
+                FlushCombatantQueue();
             }
 
             combatant = combatantsInOrder[indexOfCombatant + 1];
+            return true;
+        }
+
+        /// <summary>
+        /// Adds and removes combatants in queue, then clears queues.
+        /// </summary>
+        private void FlushCombatantQueue()
+        {
+            if (combatants.Count == 0 || combatantsInOrder.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < combatantsToRemove.Count; i++)
+            {
+                combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
+                combatantsInOrder.RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
+                CharacterRemoved?.Invoke(combatantsToRemove[i]);
+                combatantsToRemove[i].RaiseCharacterRemoved();
+            }
+
+            combatantsToAdd.ForEach(o =>
+            {
+                o.Speed = o.WrappedChar.Stats.MoveSpeed.Data
+                    + o.WrappedChar.MoveSelectBehavior.Perform(combatants).MoveSpeed;
+            });
+
+            int minSpeed = combatants[0].Min(o => o.Speed);
+            combatantsToAdd.ForEach(o =>
+            {
+                combatants[0].Add(o);
+                combatantsInOrder.Add(o);
+                CharacterAdded?.Invoke(o);
+                o.WrappedChar.RaiseCharacterAdded();
+
+                if (SpeedCarriesOver)
+                {
+                    o.Speed += o.AccumulatedSpeed - minSpeed;
+                    o.AccumulatedSpeed = o.Speed;
+                }
+            });
+
+            combatantsInOrder = combatants[0].OrderByDescending(o => o.Speed).ToList();
         }
 
         /// <summary>
@@ -524,7 +663,20 @@ namespace Parry.Combat
         public void RemoveCharacter(Character oldChar)
         {
             combatantsToAdd.RemoveAll(o => o.WrappedChar == oldChar);
-            combatantsToRemove.RemoveAll(o => o.WrappedChar == oldChar);
+            combatantsToRemove.Add(oldChar);
+        }
+
+        /// <summary>
+        /// Queues to remove the given combatant from combat. They are removed
+        /// as soon as the next turn begins. Takes off the addition queue.
+        /// </summary>
+        /// <param name="oldChar">
+        /// The combatant to be removed from combat.
+        /// </param>
+        public void RemoveCharacter(Combatant oldChar)
+        {
+            combatantsToAdd.Remove(oldChar);
+            combatantsToRemove.Add(oldChar.WrappedChar);
         }
 
         /// <summary>
@@ -549,8 +701,7 @@ namespace Parry.Combat
         {
             for (int i = 0; i < combatants.Count; i++)
             {
-                Combatant combatant = combatants[0][i];
-                combatantsToRemove.Add(combatant);
+                combatantsToRemove.Add(combatants[0][i].WrappedChar);
             }
         }
 
@@ -562,13 +713,14 @@ namespace Parry.Combat
             combatants = new List<List<Combatant>>();
             combatantsInOrder = new List<Combatant>();
             combatant = null;
-            combatantsToRemove = new List<Combatant>();
+            combatantsToRemove = new List<Character>();
             combatantsToAdd = new List<Combatant>();
             geometry = new List<Geometry>();
             ItemsOnGround = new List<Tuple<int, int, Item>>();
         }
         #endregion
 
+        /*
         #region PART OF REVISION
         /// <summary>
         /// Computes rounds of combat until only one team is left.
@@ -1352,5 +1504,6 @@ namespace Parry.Combat
             }
         }
         #endregion
+        */
     }
 }

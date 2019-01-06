@@ -43,8 +43,9 @@
     <Compile Include="Combat\Combatant.cs" />
     <Compile Include="Combat\Geometry.cs" />
     <Compile Include="Combat\Move.cs" />
+    <Compile Include="Combat\Movement.cs" />
     <Compile Include="Combat\MovementBehavior.cs" />
-    <Compile Include="Combat\MoveSelect.cs" />
+    <Compile Include="Combat\MoveSelector.cs" />
     <Compile Include="Combat\Stats.cs" />
     <Compile Include="Combat\TargetBehavior.cs" />
     <Compile Include="Combat\Constants.cs" />
@@ -57,12 +58,6 @@
     <Compile Include="ItemCollection.cs" />
     <Compile Include="ItemInstance.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Skill.cs" />
-    <Compile Include="SkillCollection.cs" />
-    <Compile Include="SkillInstance.cs" />
-    <Compile Include="Spell.cs" />
-    <Compile Include="SpellCollection.cs" />
-    <Compile Include="SpellInstance.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

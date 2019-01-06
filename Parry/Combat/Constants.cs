@@ -59,9 +59,26 @@
         }
 
         /// <summary>
+        /// Statuses governing how a character hits targets.
+        /// </summary>
+        public enum HitStatuses
+        {
+            /// <summary>
+            /// Chance to hit and chance to dodge are computed.
+            /// </summary>
+            Normal,
+
+            /// <summary>
+            /// Skips both chance to hit and target's chance to dodge.
+            /// </summary>
+            AlwaysHit
+        }
+
+        /// <summary>
         /// Only moves matching the AI's motive will be chosen.
-        /// Values up to 20 are reserved. Extend this enum by creating one
-        /// with values of 21 and higher and casting to int when using it.
+        /// Values up to 20 are reserved for internal use. Extend this enum by
+        /// creating entries with values of 21 and higher and casting to int
+        /// when using it.
         /// </summary>
         public enum Motives
         {
@@ -116,16 +133,6 @@
             /// like healing.
             /// </summary>
             RestoreHealth
-        }
-
-        /// <summary>
-        /// Whether targeting or move-selection logic is performed or
-        /// previewed.
-        /// </summary>
-        public enum PerformActions
-        {
-            Perform,
-            Preview
         }
 
         /// <summary>

@@ -14,11 +14,11 @@ namespace Parry.Combat
         /// <summary>
         /// Keeps track of all characters in the geometry.
         /// </summary>
-        public List<Character> CharactersInZone
+        public List<Combatant> CharactersInZone
         {
             get
             {
-                return new List<Character>(CharactersInZone);
+                return new List<Combatant>(CharactersInZone);
             }
             private set
             {
@@ -164,26 +164,26 @@ namespace Parry.Combat
         /// of the geometry. If a character begins or stops intersecting the
         /// geometry, triggers zone events.
         /// </summary>
-        /// <param name="characters">
+        /// <param name="combatants">
         /// A list of all characters.
         /// </param>
-        public List<Character> IsIntersecting(List<Character> characters)
+        public List<Combatant> IsIntersecting(List<Combatant> combatants)
         {
-            for (int i = 0; i < characters.Count; i++)
+            for (int i = 0; i < combatants.Count; i++)
             {
                 bool doesIntersect = IsIntersecting(
-                    characters[i].Location.Data.Item1,
-                    characters[i].Location.Data.Item2);
+                    combatants[i].WrappedChar.Location.Data.Item1,
+                    combatants[i].WrappedChar.Location.Data.Item2);
 
-                if (doesIntersect && !CharactersInZone.Contains(characters[i]))
+                if (doesIntersect && !CharactersInZone.Contains(combatants[i]))
                 {
-                    CharactersInZone.Add(characters[i]);
-                    ZoneEntered?.Invoke(this, characters[i]);
+                    CharactersInZone.Add(combatants[i]);
+                    ZoneEntered?.Invoke(this, combatants[i]);
                 }
-                else if (!doesIntersect && CharactersInZone.Contains(characters[i]))
+                else if (!doesIntersect && CharactersInZone.Contains(combatants[i]))
                 {
-                    CharactersInZone.Remove(characters[i]);
-                    ZoneExited?.Invoke(this, characters[i]);
+                    CharactersInZone.Remove(combatants[i]);
+                    ZoneExited?.Invoke(this, combatants[i]);
                 }
             }
 

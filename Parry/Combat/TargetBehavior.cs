@@ -13,109 +13,39 @@ namespace Parry.Combat
         /// <summary>
         /// Prioritizes attackers or weak and nearby enemies.
         /// </summary>
-        public static TargetBehavior Normal
-        {
-            get
-            {
-                return new TargetBehavior(Normal);
-            }
-            private set
-            {
-                Normal = value;
-            }
-        }
+        public static readonly TargetBehavior Normal;
 
         /// <summary>
         /// Prioritizes strong and nearby enemies.
         /// </summary>
-        public static TargetBehavior Champion
-        {
-            get
-            {
-                return new TargetBehavior(Champion);
-            }
-            private set
-            {
-                Champion = value;
-            }
-        }
+        public static readonly TargetBehavior Champion;
 
         /// <summary>
         /// Prioritizes strong enemies that the team can take down, and
         /// enemies already targeted by teammates.
         /// </summary>
-        public static TargetBehavior Hivemind
-        {
-            get
-            {
-                return new TargetBehavior(Hivemind);
-            }
-            private set
-            {
-                Hivemind = value;
-            }
-        }
+        public static readonly TargetBehavior Hivemind;
 
         /// <summary>
         /// Prioritizes attackers first, followed by the nearest target.
         /// </summary>
-        public static TargetBehavior Aggressive
-        {
-            get
-            {
-                return new TargetBehavior(Aggressive);
-            }
-            private set
-            {
-                Aggressive = value;
-            }
-        }
+        public static readonly TargetBehavior Aggressive;
 
         /// <summary>
         /// Stands idle until provoked, then prioritizes attackers.
         /// </summary>
-        public static TargetBehavior Sentry
-        {
-            get
-            {
-                return new TargetBehavior(Sentry);
-            }
-            private set
-            {
-                Sentry = value;
-            }
-        }
+        public static readonly TargetBehavior Sentry;
 
         /// <summary>
         /// Prioritizes weak nearby enemies with their backs turned.
         /// </summary>
-        public static TargetBehavior Assassin
-        {
-            get
-            {
-                return new TargetBehavior(Assassin);
-            }
-            private set
-            {
-                Assassin = value;
-            }
-        }
+        public static readonly TargetBehavior Assassin;
 
         /// <summary>
         /// Prioritizes targets closest to the archer or most likely to reach
         /// the archer first based on speed.
         /// </summary>
-        public static TargetBehavior Archer
-        {
-            get
-            {
-                return new TargetBehavior(Archer);
-            }
-            private set
-            {
-                Archer = value;
-            }
-        }
+        public static readonly TargetBehavior Archer;
         #endregion
 
         #region Variables - Factors and Bonuses
@@ -571,8 +501,8 @@ namespace Parry.Combat
             IsDormant = false;
             MaxNumberTargets = 1;
             AreaTargetPoints = new List<Tuple<int, int, int>>();
-            Targets = new List<Character>();
-            OverrideTargets = new List<Character>();
+            Targets = new List<Combatant>();
+            OverrideTargets = new List<Combatant>();
             AllowSelfTargeting = false;
         }
 
