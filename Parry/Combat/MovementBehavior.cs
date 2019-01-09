@@ -25,11 +25,26 @@ namespace Parry.Combat
         public List<Combatant> Targets;
 
         /// <summary>
+        /// When target locations are set, this list will be used in addition
+        /// to normal targets.
+        /// </summary>
+        public List<Tuple<float, float>> TargetLocations;
+
+        /// <summary>
         /// Motions that use distance will use the first value or both if a
         /// range is required.
         /// Default value is 0, 0.
         /// </summary>
         public Tuple<int, int> DistanceRange;
+
+        /// <summary>
+        /// If true, targets will be derived from the associated targeting
+        /// behavior of the owning character. Looks first at the chosen move's
+        /// targeting behavior, then character's default targeting behavior,
+        /// and in each case considers OverrideTargets before Targets.
+        /// False by default.
+        /// </summary>
+        public bool UseTargetingTargets;
         #endregion
 
         #region Constructors
@@ -42,7 +57,9 @@ namespace Parry.Combat
         {
             Movements = new List<Movement>() { new Movement(origin, motion) };
             Targets = new List<Combatant>();
+            TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
+            UseTargetingTargets = false;
         }
 
         /// <summary>
@@ -52,7 +69,9 @@ namespace Parry.Combat
         {
             Movements = new List<Movement>(movements);
             Targets = new List<Combatant>();
+            TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
+            UseTargetingTargets = false;
         }
 
         /// <summary>
@@ -62,7 +81,9 @@ namespace Parry.Combat
         {
             Movements = movements;
             Targets = targets;
+            TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
+            UseTargetingTargets = false;
         }
 
         /// <summary>
@@ -75,7 +96,9 @@ namespace Parry.Combat
         {
             Movements = other.Movements;
             Targets = other.Targets;
+            TargetLocations = other.TargetLocations;
             DistanceRange = other.DistanceRange;
+            UseTargetingTargets = other.UseTargetingTargets;
         }
         #endregion
 
@@ -174,8 +197,18 @@ namespace Parry.Combat
         /// <summary>
         /// Performs the movement.
         /// </summary>
-        public Tuple<float, float> Perform(List<Combatant> combatants, Combatant self)
+        public Tuple<float, float> Perform(List<Combatant> combatants, Combatant self, Move chosenMove)
         {
+            List<Tuple<float, float>> targets = (UseTargetingTargets)
+                ? self.WrappedChar.GetTargets().Select(o => o.WrappedChar.Location.Data).ToList()
+                : (Targets.Count > 0)
+                ? Targets.Select(o => o.WrappedChar.Location.Data).ToList()
+                : combatants.Where(o => o.WrappedChar.TeamID != self.WrappedChar.TeamID)
+                .Select(o => o.WrappedChar.Location.Data)
+                .ToList();
+
+            targets.AddRange(TargetLocations);
+
             MotionOrigin appliedMotionOrigin = MotionOrigin.First;
             Motion appliedMotion = Motion.Towards;
 
@@ -191,14 +224,6 @@ namespace Parry.Combat
                 }
             }
 
-            // Filters to targets only or non-allied combatants if not set.
-            List<Combatant> realTargets = (Targets.Count > 0)
-                ? Targets
-                : combatants.Where(o => o.WrappedChar.TeamID != self.WrappedChar.TeamID).ToList();
-            {
-                realTargets = Targets;
-            }
-
             // Gets the desired location to use as an origin.
             Tuple<float, float> origin = null;
             switch (appliedMotionOrigin)
@@ -206,16 +231,16 @@ namespace Parry.Combat
                 case MotionOrigin.Average:
                     float x = 0;
                     float y = 0;
-                    for (int j = 0; j < realTargets.Count; j++)
+                    for (int j = 0; j < targets.Count; j++)
                     {
-                        x += realTargets[j].WrappedChar.Location.Data.Item1;
-                        y += realTargets[j].WrappedChar.Location.Data.Item2;
+                        x += targets[j].Item1;
+                        y += targets[j].Item2;
                     }
-                    origin = new Tuple<float, float>(x / realTargets.Count, y / realTargets.Count);
+                    origin = new Tuple<float, float>(x / targets.Count, y / targets.Count);
                     break;
                 case MotionOrigin.First:
-                    origin = realTargets.Count > 0
-                        ? realTargets[0].WrappedChar.Location.Data
+                    origin = targets.Count > 0
+                        ? targets[0]
                         : new Tuple<float, float>(0, 0);
                     break;
                 case MotionOrigin.Furthest:
@@ -223,15 +248,15 @@ namespace Parry.Combat
                     float x1 = self.WrappedChar.Location.Data.Item1;
                     float y1 = self.WrappedChar.Location.Data.Item2;
                     float x2, y2;
-                    for (int j = 0; j < realTargets.Count; j++)
+                    for (int j = 0; j < targets.Count; j++)
                     {
-                        x2 = realTargets[j].WrappedChar.Location.Data.Item1;
-                        y2 = realTargets[j].WrappedChar.Location.Data.Item2;
+                        x2 = targets[j].Item1;
+                        y2 = targets[j].Item2;
                         float newDist = (float)Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
                         if (newDist > dist)
                         {
                             dist = newDist;
-                            origin = realTargets[j].WrappedChar.Location.Data;
+                            origin = targets[j];
                         }
                     }
                     break;
@@ -239,15 +264,15 @@ namespace Parry.Combat
                     dist = float.MaxValue;
                     x1 = self.WrappedChar.Location.Data.Item1;
                     y1 = self.WrappedChar.Location.Data.Item2;
-                    for (int j = 0; j < realTargets.Count; j++)
+                    for (int j = 0; j < targets.Count; j++)
                     {
-                        x2 = realTargets[j].WrappedChar.Location.Data.Item1;
-                        y2 = realTargets[j].WrappedChar.Location.Data.Item2;
+                        x2 = targets[j].Item1;
+                        y2 = targets[j].Item2;
                         float newDist = (float)Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
                         if (newDist < dist)
                         {
                             dist = newDist;
-                            origin = realTargets[j].WrappedChar.Location.Data;
+                            origin = targets[j];
                         }
                     }
                     break;
@@ -257,15 +282,15 @@ namespace Parry.Combat
                     dist = float.MaxValue;
                     x1 = self.WrappedChar.Location.Data.Item1;
                     y1 = self.WrappedChar.Location.Data.Item2;
-                    for (int j = 0; j < realTargets.Count; j++)
+                    for (int j = 0; j < targets.Count; j++)
                     {
-                        x2 = realTargets[j].WrappedChar.Location.Data.Item1;
-                        y2 = realTargets[j].WrappedChar.Location.Data.Item2;
+                        x2 = targets[j].Item1;
+                        y2 = targets[j].Item2;
                         float newDist = (float)Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
                         if (Math.Abs(center - newDist) < dist)
                         {
                             dist = newDist;
-                            origin = realTargets[j].WrappedChar.Location.Data;
+                            origin = targets[j];
                         }
                     }
                     break;

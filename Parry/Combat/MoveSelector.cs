@@ -50,6 +50,16 @@ namespace Parry.Combat
         }
 
         /// <summary>
+        /// The last move chosen by performing move selection.
+        /// Default null.
+        /// </summary>
+        public Move ChosenMove
+        {
+            private set;
+            get;
+        }
+
+        /// <summary>
         /// A value from 0 to 1, where 1 is a full turn and 0 is none left.
         /// Default value is 1.
         /// </summary>
@@ -75,6 +85,7 @@ namespace Parry.Combat
             Motive = Constants.Motives.DamageHealth;
             Moves = new List<Move>() { new Move() };
             TurnFractionLeft = 1;
+            ChosenMove = null;
         }
 
         /// <summary>
@@ -88,6 +99,7 @@ namespace Parry.Combat
             Motive = Constants.Motives.DamageHealth;
             Moves = moves;
             TurnFractionLeft = 1;
+            ChosenMove = null;
         }
 
         /// <summary>
@@ -100,6 +112,7 @@ namespace Parry.Combat
             Motive = other.Motive;
             Moves = new List<Move>(other.Moves);
             TurnFractionLeft = other.TurnFractionLeft;
+            ChosenMove = other.ChosenMove;
         }
         #endregion
 
@@ -135,15 +148,17 @@ namespace Parry.Combat
                 .ToList();
             }
 
-            //TODO: Get moves from items.
-
             // Gets the move.
             if (GetMove != null)
             {
-                return GetMove(combatHistory, availableMoves);
+                ChosenMove = GetMove(combatHistory, availableMoves);
+            }
+            else
+            {
+                ChosenMove = Moves.FirstOrDefault();
             }
 
-            return Moves.FirstOrDefault();
+            return ChosenMove;
         }
         #endregion
     }

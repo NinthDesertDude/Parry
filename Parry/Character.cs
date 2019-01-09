@@ -10,7 +10,14 @@ namespace Parry
     /// </summary>
     public class Character
     {
+        private static long Guid = 0;
+
         #region Properties
+        /// <summary>
+        /// A unique character ID, shared only by deep clones that copy guids.
+        /// </summary>
+        public readonly long Id;
+
         /// <summary>
         /// In combat, this is the character's total possible health.
         /// Default value is 100.
@@ -45,28 +52,6 @@ namespace Parry
         /// In combat, characters with the same team ID are on the same team.
         /// </summary>
         public int TeamID
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// True if the AI can change equipment to suit battle. No effect
-        /// if disabled for all in combat.
-        /// True by default.
-        /// </summary>
-        public Stat<bool> CanChangeEquipment
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// True if the AI can loot equipment from the ground for battle. No
-        /// effect if disabled for all in combat.
-        /// True by default.
-        /// </summary>
-        public Stat<bool> CanLootEquipment
         {
             get;
             set;
@@ -342,6 +327,7 @@ namespace Parry
         /// </summary>
         public Character()
         {
+            Id = Guid++;
             TeamID = 0;
             Health = new Stat<int>(100);
             Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
@@ -350,8 +336,6 @@ namespace Parry
             MoveSelectBehavior = new MoveSelector();
             DefaultMovementBeforeBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
             DefaultMovementAfterBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
-            CanChangeEquipment = new Stat<bool>(true);
-            CanLootEquipment = new Stat<bool>(true);
             CombatMoveEnabled = new Stat<bool>(true);
             CombatMoveSelectEnabled = new Stat<bool>(true);
             CombatTargetingEnabled = new Stat<bool>(true);
@@ -361,13 +345,15 @@ namespace Parry
         }
 
         /// <summary>
-        /// Creates a deep copy of another profile if isDeepCopy is true, else
-        /// shallow.
+        /// Creates a shallow or deep copy of another character, generating a
+        /// new id if desired. Having characters with the same id allows for an
+        /// efficent way of identifying related clones, as with combat history.
         /// </summary>
-        public Character(Character other, bool isDeepCopy = false)
+        public Character(Character other, bool isDeepCopy = false, bool newId = false)
         {
             if (!isDeepCopy)
             {
+                Id = (newId) ? Guid++ : other.Id;
                 TeamID = other.TeamID;
                 Health = other.Health;
                 Location = other.Location;
@@ -376,8 +362,6 @@ namespace Parry
                 MoveSelectBehavior = other.MoveSelectBehavior;
                 DefaultMovementBeforeBehavior = other.DefaultMovementBeforeBehavior;
                 DefaultMovementAfterBehavior = other.DefaultMovementAfterBehavior;
-                CanChangeEquipment = other.CanChangeEquipment;
-                CanLootEquipment = other.CanLootEquipment;
                 CombatMoveEnabled = other.CombatMoveEnabled;
                 CombatMoveSelectEnabled = other.CombatMoveSelectEnabled;
                 CombatTargetingEnabled = other.CombatTargetingEnabled;
@@ -387,6 +371,7 @@ namespace Parry
             }
             else
             {
+                Id = (newId) ? Guid++ : other.Id;
                 TeamID = other.TeamID;
                 Health = new Stat<int>(other.Health.RawData);
                 Location = new Stat<Tuple<float, float>>(other.Location.RawData);
@@ -395,8 +380,6 @@ namespace Parry
                 MoveSelectBehavior = new MoveSelector(other.MoveSelectBehavior);
                 DefaultMovementBeforeBehavior = new MovementBehavior(other.DefaultMovementBeforeBehavior);
                 DefaultMovementAfterBehavior = new MovementBehavior(other.DefaultMovementAfterBehavior);
-                CanChangeEquipment = new Stat<bool>(other.CanChangeEquipment.RawData);
-                CanLootEquipment = new Stat<bool>(other.CanLootEquipment.RawData);
                 CombatMoveEnabled = new Stat<bool>(other.CombatMoveEnabled.RawData);
                 CombatMoveSelectEnabled = new Stat<bool>(other.CombatMoveSelectEnabled.RawData);
                 CombatTargetingEnabled = new Stat<bool>(other.CombatTargetingEnabled.RawData);
@@ -404,6 +387,39 @@ namespace Parry
                 CombatMovementBeforeEnabled = new Stat<bool>(other.CombatMovementBeforeEnabled.RawData);
                 CombatMovementAfterEnabled = new Stat<bool>(other.CombatMovementAfterEnabled.RawData);
             }
+        }
+        #endregion
+
+        #region Methods
+        /// <summary>
+        /// If targets have been computed, returns the appropriate set of
+        /// computed targets. The chosen move's targeting behavior is preferred
+        /// to the default targeting behavior, and OverrideTargets is preferred
+        /// to Targets. If no suitable list is found, returns an empty list.
+        /// </summary>
+        public List<Combatant> GetTargets()
+        {
+            if (MoveSelectBehavior.ChosenMove?.TargetBehavior?.OverrideTargets != null)
+            {
+                return MoveSelectBehavior.ChosenMove.TargetBehavior.OverrideTargets;
+            }
+
+            if (MoveSelectBehavior.ChosenMove?.TargetBehavior?.Targets != null)
+            {
+                return MoveSelectBehavior.ChosenMove?.TargetBehavior?.Targets;
+            }
+
+            if (DefaultTargetBehavior?.OverrideTargets != null)
+            {
+                return DefaultTargetBehavior.OverrideTargets;
+            }
+
+            if (DefaultTargetBehavior?.Targets != null)
+            {
+                return DefaultTargetBehavior.Targets;
+            }
+
+            return new List<Combatant>();
         }
         #endregion
 

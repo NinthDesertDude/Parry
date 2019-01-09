@@ -30,8 +30,9 @@ namespace ParryLaunchTester
                 chr.TurnStart += () => { Console.Write($"{chr.Stats.CustomStats["name"]} takes a swing. "); };
                 chr.AttackMissed += (a) => { Console.Write($"Missed {a.WrappedChar.Stats.CustomStats["name"]}. "); };
                 chr.AttackCritHit += (a, b) => { Console.Write("Critical hit! "); };
-                chr.AttackBeforeDamage += (a, b) => { Console.Write($"{a.WrappedChar.Stats.CustomStats["name"]} takes {b.Sum()} damage and has {a.CurrentHealth} health. "); };
-                chr.AttackRecoil += (a, b, c) => { Console.Write($"Recoil {b}."); };
+                chr.AttackBeforeDamage += (a, b) => { Console.Write($"{a.WrappedChar.Stats.CustomStats["name"]} takes {b.Sum()} damage and has {a.CurrentHealth.Data - b.Sum()} health. "); };
+                chr.AttackRecoil += (a, b, c) => { if (b > 0) { Console.Write($"Recoil {b}. "); } };
+                chr.TurnEnd += () => { Console.WriteLine(); };
 
                 return chr;
             });
@@ -40,9 +41,13 @@ namespace ParryLaunchTester
             session.AddCharacter(generateCharacter("Bob", 2));
 
             session.NextRound();
-            while (session.NextTurn()) {
-                session.ExecuteTurn(false);
+            while (true) {
+                if (!session.ExecuteTurn(true))
+                {
+                    break;
+                }
             }
+
             Console.ReadKey();
         }
     }

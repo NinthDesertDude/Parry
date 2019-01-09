@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Parry.Combat
 {
@@ -32,14 +33,9 @@ namespace Parry.Combat
         public static readonly TargetBehavior Aggressive;
 
         /// <summary>
-        /// Stands idle until provoked, then prioritizes attackers.
+        /// Prioritizes weak nearby enemies.
         /// </summary>
-        public static readonly TargetBehavior Sentry;
-
-        /// <summary>
-        /// Prioritizes weak nearby enemies with their backs turned.
-        /// </summary>
-        public static readonly TargetBehavior Assassin;
+        public static readonly TargetBehavior Ruthless;
 
         /// <summary>
         /// Prioritizes targets closest to the archer or most likely to reach
@@ -130,7 +126,7 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Average ally damage ÷ their health, clamped to 1.
+        /// Average ally damage ÷ target's health, clamped to 1.
         /// If their health is 0, treats it as 1.
         /// If ally damage >= their health, caps at 1.
         /// </summary>
@@ -225,10 +221,11 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Adds X for targets facing a direction away from you (by 90 degrees
-        /// or more). Based on direction to targets, or movement direction.
+        /// Adds X for targets that were targeted last round. Checks in
+        /// Targets.
+        /// Default 0.
         /// </summary>
-        public float TurnedAwayBonus
+        public float PreviousTargetBonus
         {
             get;
             set;
@@ -240,7 +237,7 @@ namespace Parry.Combat
         /// The AI considers allies as enemies and vice versa everywhere.
         /// False by default.
         /// </summary>
-        public bool IsBetrayer
+        public bool SwapAlliesEnemies
         {
             get;
             set;
@@ -258,6 +255,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// Adds allies to the list of possible targets.
+        /// False by default.
         /// </summary>
         public bool IsNeutral
         {
@@ -298,22 +296,11 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// The AI does not consider targets until targeted or damaged once.
-        /// False by default.
+        /// If nonzero, the weighted scores involved in selecting targets must
+        /// be >= this value to select a target.
+        /// Default 0.
         /// </summary>
-        public bool IsDormant
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// The weighted scores involved in selecting targets must be >= this
-        /// value to cause the AI to switch targets. Default 0. Negative or
-        /// sufficiently high values cause the AI to never switch valid
-        /// targets.
-        /// </summary>
-        public int ScoreDifferenceToChangeTargets
+        public int MinScoreThreshold
         {
             get;
             set;
@@ -321,6 +308,8 @@ namespace Parry.Combat
         #endregion
 
         #region Variables
+        private static Random rng = new Random();
+
         /// <summary>
         /// The AI will take the first N targets based on their criteria.
         /// If negative, the AI will take more than 1 only for area targeting.
@@ -335,8 +324,8 @@ namespace Parry.Combat
         /// <summary>
         /// Takes a list of (x,y,radius) tuples, where x and y describe the
         /// center point of the area attack. If any tuples are provided,
-        /// targeting is limited to the radius and an attack is made for each
-        /// entry. 
+        /// targeting is limited to the radii. Doesn't select a target more
+        /// than once if radii overlap.
         /// </summary>
         public List<Tuple<int, int, int>> AreaTargetPoints
         {
@@ -352,9 +341,25 @@ namespace Parry.Combat
         /// </summary>
         public List<Combatant> Targets
         {
-            get;
-            set;
+            get
+            {
+                return weightedTargets.Select(o => o.Item1).ToList();
+            }
+            set
+            {
+                weightedTargets.Clear();
+                for (int i = 0; i < value.Count; i++)
+                {
+                    weightedTargets.Add(new Tuple<Combatant, float>(value[i], 0));
+                }
+            }
         }
+
+        /// <summary>
+        /// When the combat system computes targets from this criteria, this
+        /// list is populated with both combatants and their scores.
+        /// </summary>
+        private List<Tuple<Combatant, float>> weightedTargets = new List<Tuple<Combatant, float>>();
 
         /// <summary>
         /// When set, the combat system will copy this list to the Targets list
@@ -408,7 +413,7 @@ namespace Parry.Combat
                 RetaliationBonus = 10,
                 InEasyRangeBonus = 20,
                 InMobileRangeBonus = 10,
-                ScoreDifferenceToChangeTargets = 5
+                PreviousTargetBonus = 5
             };
 
             Hivemind = new TargetBehavior()
@@ -420,7 +425,7 @@ namespace Parry.Combat
                 TeamworkBonus = 2,
                 InEasyRangeBonus = 5,
                 InMobileRangeBonus = 5,
-                ScoreDifferenceToChangeTargets = 5
+                PreviousTargetBonus = 5
             };
 
             Normal = new TargetBehavior()
@@ -434,25 +439,17 @@ namespace Parry.Combat
                 InMobileRangeBonus = 10,
                 EasyDefeatBonus = 20,
                 NoRiskBonus = 10,
-                ScoreDifferenceToChangeTargets = 10
+                PreviousTargetBonus = 10
             };
 
-            Assassin = new TargetBehavior()
+            Ruthless = new TargetBehavior()
             {
                 InEasyRangeBonus = 10,
                 InMobileRangeBonus = 10,
-                TurnedAwayBonus = 20,
                 NoRiskBonus = 10,
                 EasyDefeatBonus = 10,
                 YourThreatFactor = 1,
-                ScoreDifferenceToChangeTargets = 10
-            };
-
-            Sentry = new TargetBehavior()
-            {
-                IsDormant = true,
-                IsVindictive = true,
-                ScoreDifferenceToChangeTargets = 1
+                PreviousTargetBonus = 10
             };
 
             Archer = new TargetBehavior()
@@ -463,7 +460,7 @@ namespace Parry.Combat
                 YourThreatFactor = 2,
                 YourResistFactor = 1,
                 YourHealthDamageFactor = 10,
-                ScoreDifferenceToChangeTargets = 50
+                PreviousTargetBonus = 50
             };
         }
 
@@ -484,25 +481,24 @@ namespace Parry.Combat
             TeamHealthDamageFactor = 0;
             DistanceFactor = 0;
             MovementFactor = 0;
-            TurnedAwayBonus = 0;
             NoRiskBonus = 0;
             InEasyRangeBonus = 0;
             InMobileRangeBonus = 0;
             RetaliationBonus = 0;
             TeamworkBonus = 0;
             EasyDefeatBonus = 0;
-            ScoreDifferenceToChangeTargets = 0;
-            IsBetrayer = false;
+            PreviousTargetBonus = 0;
+            MinScoreThreshold = 0;
+            SwapAlliesEnemies = false;
             IsLoyal = false;
             IsNeutral = false;
             IsVindictive = false;
             IsSelfless = false;
             InRangeOnly = false;
-            IsDormant = false;
             MaxNumberTargets = 1;
             AreaTargetPoints = new List<Tuple<int, int, int>>();
             Targets = new List<Combatant>();
-            OverrideTargets = new List<Combatant>();
+            OverrideTargets = null;
             AllowSelfTargeting = false;
         }
 
@@ -526,21 +522,20 @@ namespace Parry.Combat
             TeamHealthDamageFactor = other.TeamHealthDamageFactor;
             DistanceFactor = other.DistanceFactor;
             MovementFactor = other.MovementFactor;
-            TurnedAwayBonus = other.TurnedAwayBonus;
             NoRiskBonus = other.NoRiskBonus;
             InEasyRangeBonus = other.InEasyRangeBonus;
             InMobileRangeBonus = other.InMobileRangeBonus;
             RetaliationBonus = other.RetaliationBonus;
             TeamworkBonus = other.TeamworkBonus;
             EasyDefeatBonus = other.EasyDefeatBonus;
-            ScoreDifferenceToChangeTargets = other.ScoreDifferenceToChangeTargets;
-            IsBetrayer = other.IsBetrayer;
+            PreviousTargetBonus = other.PreviousTargetBonus;
+            MinScoreThreshold = other.MinScoreThreshold;
+            SwapAlliesEnemies = other.SwapAlliesEnemies;
             IsLoyal = other.IsLoyal;
             IsNeutral = other.IsNeutral;
             IsVindictive = other.IsVindictive;
             IsSelfless = other.IsSelfless;
             InRangeOnly = other.InRangeOnly;
-            IsDormant = other.IsDormant;
             MaxNumberTargets = other.MaxNumberTargets;
             AreaTargetPoints = other.AreaTargetPoints;
             Targets = other.Targets;
@@ -555,10 +550,375 @@ namespace Parry.Combat
         /// and a list of combatants. Set OverrideTargets to override this
         /// behavior.
         /// </summary>
-        public List<Combatant> Perform(List<Combatant> combatants)
+        public List<Combatant> Perform(List<List<Combatant>> combatHistory, Combatant self)
         {
-            //TODO: Implement this.
-            throw new NotImplementedException();
+            if (OverrideTargets != null)
+            {
+                return OverrideTargets;
+            }
+
+            List<Combatant> combatants = new List<Combatant>(combatHistory[0]);
+
+            // Area-based targeting.
+            if (AreaTargetPoints.Count > 0)
+            {
+                combatants = new List<Combatant>();
+
+                for (int i = 0; i < AreaTargetPoints.Count; i++)
+                {
+                    combatants.AddRange(
+                        combatHistory[0].Where(o =>
+                        {
+                            double distance = Math.Sqrt(
+                            Math.Pow(o.WrappedChar.Location.Data.Item1
+                                - AreaTargetPoints[i].Item1, 2) +
+                            Math.Pow(o.WrappedChar.Location.Data.Item2
+                                - AreaTargetPoints[i].Item2, 2));
+
+                            return distance <= AreaTargetPoints[i].Item3;
+                        }));
+                }
+
+                combatants = combatants.Distinct().ToList();
+            }
+
+            var weights = new List<Tuple<Combatant, float>>();
+            List<Combatant> allies = combatants.Where(o => o != self && o.WrappedChar.TeamID == self.WrappedChar.TeamID).ToList();
+            List<Combatant> enemies = combatants.Where(o => o.WrappedChar.TeamID != self.WrappedChar.TeamID).ToList();
+
+            if (AllowSelfTargeting)
+            {
+                allies.Add(self);
+            }
+
+            if (IsNeutral)
+            {
+                enemies = combatants;
+                allies.Clear();
+
+                if (!AllowSelfTargeting)
+                {
+                    enemies.Remove(self);
+                }
+            }
+
+            if (!IsLoyal && combatHistory.Count > 1)
+            {
+                Combatant selfLastRound = combatHistory[1]
+                    .FirstOrDefault(o => o.WrappedChar.Id == self.WrappedChar.Id);
+
+                for (int i = 0; i < allies.Count; i++)
+                {
+                    Combatant allyLastRound = combatHistory[1]
+                        .FirstOrDefault(o => o.WrappedChar.Id == allies[i].WrappedChar.Id);
+
+                    if ((allyLastRound.WrappedChar.MoveSelectBehavior.Motive == Constants.Motives.DamageHealth ||
+                        allyLastRound.WrappedChar.MoveSelectBehavior.Motive == Constants.Motives.LowerStats) &&
+                        allyLastRound.WrappedChar.GetTargets().Contains(selfLastRound))
+                    {
+                        allies.RemoveAt(i);
+                        enemies.Add(allies[i]);
+                    }
+                }
+            }
+
+            if (SwapAlliesEnemies)
+            {
+                List<Combatant> temp = allies;
+                allies = enemies;
+                enemies = temp;
+            }
+
+            // Computes stats for the combatant.
+            var resistance = (YourResistFactor != 0 || ResistOpportunityFactor != 0)
+                ? self.WrappedChar.Stats.DamageResistance.Data.Sum()
+                : 0;
+
+            int minDamage = 0;
+            int maxDamage = 0;
+            float avgDamage = 0;
+
+            if (YourThreatFactor != 0 || YourHealthDamageFactor != 0 || ThreatOpportunityFactor != 0 || EasyDefeatBonus != 0)
+            {
+                minDamage = self.WrappedChar.Stats.MinDamage.Data.Sum();
+                maxDamage = self.WrappedChar.Stats.MaxDamage.Data.Sum();
+                avgDamage = minDamage + (maxDamage - minDamage) / 2;
+            }
+
+            // Computes all factors.
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                float weight = (RandomFactor == 0) ? 0 : (float)rng.NextDouble() * RandomFactor;
+                float theirResistance = enemies[i].WrappedChar.Stats.DamageResistance.Data.Sum();
+                int theirMinDamage = enemies[i].WrappedChar.Stats.MinDamage.Data.Sum();
+                int theirMaxDamage = enemies[i].WrappedChar.Stats.MaxDamage.Data.Sum();
+                float theirAvgDamage = theirMinDamage + (theirMaxDamage - theirMinDamage) / 2;
+
+                float teamAvgDamage = 0;
+                for (int j = 0; j < allies.Count; j++)
+                {
+                    for (int k = 0; k < Stats.NUM_TYPES_DAMAGE; k++)
+                    {
+                        teamAvgDamage += allies[j].WrappedChar.Stats.MinDamage.Data[k] +
+                            (allies[j].WrappedChar.Stats.MaxDamage.Data[k] -
+                            allies[j].WrappedChar.Stats.MinDamage.Data[k]) / 2;
+                    }
+                }
+                teamAvgDamage = (allies.Count > 0) ? teamAvgDamage / allies.Count : 0;
+
+                double distance = Math.Sqrt(
+                    Math.Pow(enemies[i].WrappedChar.Location.Data.Item1
+                        - self.WrappedChar.Location.Data.Item1, 2) +
+                    Math.Pow(enemies[i].WrappedChar.Location.Data.Item2
+                        - self.WrappedChar.Location.Data.Item2, 2));
+
+                if (YourThreatFactor != 0)
+                {
+                    weight += (theirResistance == 0)
+                        ? YourThreatFactor * avgDamage
+                        : YourThreatFactor * (avgDamage / theirResistance);
+                }
+
+                if (TeamThreatFactor != 0)
+                {
+                    weight += (theirResistance == 0)
+                        ? TeamThreatFactor * teamAvgDamage
+                        : TeamThreatFactor * teamAvgDamage / theirResistance;
+                }
+
+                if (YourResistFactor != 0 && theirAvgDamage != 0)
+                {
+                    weight += (resistance == 0)
+                        ? YourResistFactor * (1 / theirAvgDamage)
+                        : YourResistFactor * (1 / (theirAvgDamage / resistance));
+                }
+
+                if (TeamResistFactor != 0 && theirAvgDamage != 0)
+                {
+                    float teamResist = allies.Average(o => o.WrappedChar.Stats.DamageResistance.Data.Sum());
+                    weight += (teamResist == 0)
+                        ? TeamResistFactor * (1 / theirAvgDamage)
+                        : TeamResistFactor * (1 / (theirAvgDamage / teamResist));
+                }
+
+                if (GroupAttackFactor != 0)
+                {
+                    int numTargeting = allies.Count(o =>
+                        o.WrappedChar.GetTargets().Contains(enemies[i]));
+
+                    weight += GroupAttackFactor * numTargeting;
+                }
+
+                if (YourHealthDamageFactor != 0)
+                {
+                    float factor = (enemies[i].CurrentHealth.Data <= 0)
+                        ? avgDamage
+                        : avgDamage / enemies[i].CurrentHealth.Data;
+
+                    weight += (factor > 1)
+                        ? YourHealthDamageFactor
+                        : YourHealthDamageFactor * factor;
+                }
+
+                if (TeamHealthDamageFactor != 0)
+                {
+                    float factor = (enemies[i].CurrentHealth.Data <= 0)
+                        ? teamAvgDamage
+                        : teamAvgDamage / enemies[i].CurrentHealth.Data;
+
+                    weight += (factor > 1)
+                        ? TeamHealthDamageFactor
+                        : TeamHealthDamageFactor * factor;
+                }
+
+                if (DistanceFactor != 0)
+                {
+                    double avgEnemyDistance = enemies.Average(o =>
+                    {
+                        return Math.Sqrt(
+                            Math.Pow(o.WrappedChar.Location.Data.Item1 - self.WrappedChar.Location.Data.Item1, 2) +
+                            Math.Pow(o.WrappedChar.Location.Data.Item2 - self.WrappedChar.Location.Data.Item2, 2));
+                    });
+
+                    weight += (distance < 1)
+                        ? (float)(DistanceFactor * avgEnemyDistance)
+                        : (float)(DistanceFactor * avgEnemyDistance / distance);
+                }
+
+                if (MovementFactor != 0)
+                {
+                    float avgMovement = enemies.Average(o => o.WrappedChar.Stats.MovementRate.Data);
+                    float movement = enemies[i].WrappedChar.Stats.MovementRate.Data;
+
+                    weight += (avgMovement == 0)
+                        ? MovementFactor * movement
+                        : MovementFactor * movement / avgMovement;
+                }
+
+                if (ThreatOpportunityFactor != 0)
+                {
+                    float threatFactor = (theirResistance == 0)
+                        ? avgDamage : (avgDamage / theirResistance);
+
+                    float teamThreatFactor = (theirResistance == 0)
+                        ? teamAvgDamage : teamAvgDamage / theirResistance;
+
+                    weight += (teamThreatFactor == 0)
+                        ? ThreatOpportunityFactor * threatFactor
+                        : ThreatOpportunityFactor * threatFactor / teamThreatFactor;
+                }
+
+                if (ResistOpportunityFactor != 0)
+                {
+                    float resistFactor = (resistance == 0)
+                        ? YourResistFactor * (1 / theirAvgDamage)
+                        : YourResistFactor * (1 / (theirAvgDamage / resistance));
+
+                    float teamResist = allies.Average(o => o.WrappedChar.Stats.DamageResistance.Data.Sum());
+                    float teamResistFactor = (teamResist == 0)
+                        ? 1 / theirAvgDamage
+                        : 1 / (theirAvgDamage / teamResist);
+
+                    weight += (teamResistFactor == 0)
+                        ? ResistOpportunityFactor * resistFactor
+                        : ResistOpportunityFactor * resistFactor / TeamResistFactor;
+                }
+
+                // Computes all bonuses.
+                if (NoRiskBonus != 0)
+                {
+                    float dist = (float)distance;
+                    float movement = (self.WrappedChar.CombatMovementEnabled.Data &&
+                        self.WrappedChar.CombatMovementBeforeEnabled.Data)
+                        ? self.WrappedChar.Stats.MovementRate.Data
+                        : 0;
+
+                    float range = self.WrappedChar.Stats.MaxRangeAllowed.Data;
+                    float goal = range - dist;
+                    float intendedMove = Math.Min(Math.Abs(goal), movement);
+                    dist += intendedMove * Math.Sign(goal);
+
+                    if (dist <= range)
+                    {
+                        dist += movement;
+                        if (enemies[i].WrappedChar.CombatMovementEnabled.Data &&
+                              enemies[i].WrappedChar.CombatMovementBeforeEnabled.Data &&
+                              enemies[i].WrappedChar.Stats.MovementRate.Data +
+                              enemies[i].WrappedChar.Stats.MaxRangeAllowed.Data < dist)
+                        {
+                            weight += NoRiskBonus;
+                        }
+                    }
+                }
+
+                if (InEasyRangeBonus != 0 && distance <= self.WrappedChar.Stats.MaxRangeAllowed.Data)
+                {
+                    weight += InEasyRangeBonus;
+                }
+
+                if (InRangeOnly || InMobileRangeBonus != 0)
+                {
+                    double distAfterMove = distance;
+                    if (self.WrappedChar.CombatMovementEnabled.Data &&
+                        self.WrappedChar.CombatMovementBeforeEnabled.Data)
+                    {
+                        distAfterMove -= Math.Min(distance, self.WrappedChar.Stats.MovementRate.Data);
+                    }
+
+                    if (distAfterMove <= self.WrappedChar.Stats.MaxRangeAllowed.Data)
+                    {
+                        if (InMobileRangeBonus != 0)
+                        {
+                            weight += InMobileRangeBonus;
+                        }
+                    }
+                    else if (InRangeOnly)
+                    {
+                        weight -= float.MaxValue;
+                    }
+                }
+
+                if ((IsVindictive || RetaliationBonus != 0) && combatHistory.Count > 1)
+                {
+                    Combatant selfLastRound = combatHistory[1]
+                        .FirstOrDefault(o => o.WrappedChar.Id == self.WrappedChar.Id);
+                    Combatant charLastRound = combatHistory[1]
+                        .FirstOrDefault(o => o.WrappedChar.Id == enemies[i].WrappedChar.Id);
+
+                    if (charLastRound.WrappedChar.GetTargets().Contains(selfLastRound))
+                    {
+                        if (RetaliationBonus != 0)
+                        {
+                            weight += RetaliationBonus;
+                        }
+                    }
+                    else if (IsVindictive)
+                    {
+                        weight -= float.MaxValue;
+                    }
+                }
+
+                if ((IsSelfless || TeamworkBonus != 0) && combatHistory.Count > 1)
+                {
+                    List<Combatant> alliesLastRound = combatHistory[1]
+                        .Where(o => o.WrappedChar.TeamID == self.WrappedChar.TeamID)
+                        .ToList();
+
+                    bool didTarget = enemies[i].WrappedChar.GetTargets().Any(o =>
+                        alliesLastRound.Contains(o));
+
+                    if (didTarget)
+                    {
+                        if (TeamworkBonus != 0)
+                        {
+                            weight += TeamworkBonus;
+                        }
+                    }
+                    else if (IsSelfless)
+                    {
+                        weight -= float.MaxValue;
+                    }
+                }
+
+                if (EasyDefeatBonus != 0)
+                {
+                    if (avgDamage >= enemies[i].CurrentHealth.Data)
+                    {
+                        weight += EasyDefeatBonus;
+                    }
+                }
+
+                if (PreviousTargetBonus != 0 && Targets != null && Targets.Contains(enemies[i]))
+                {
+                    weight += PreviousTargetBonus;
+                }
+
+                weights.Add(new Tuple<Combatant, float>(enemies[i], weight));
+            }
+
+            // Organizing weights and selecting targets.
+            weights = weights.OrderBy(o => o.Item2).ToList();
+
+            List<Tuple<Combatant, float>> targets = new List<Tuple<Combatant, float>>();
+            for (int i = 0; i < weights.Count; i++)
+            {
+                if (weights[i].Item2 < MinScoreThreshold && MinScoreThreshold != 0)
+                {
+                    continue;
+                }
+
+                if (targets.Count < MaxNumberTargets)
+                {
+                    targets.Add(weights[i]);
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            weightedTargets = targets;
+            return targets.Select(o => o.Item1).ToList();
         }
         #endregion
     }

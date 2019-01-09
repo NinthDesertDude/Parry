@@ -248,10 +248,10 @@ namespace Parry.Combat
         /// </summary>
         public bool CanPerform()
         {
-            return (IsMoveEnabled &&
+            return IsMoveEnabled &&
                 CooldownProgress == 0 &&
                 TurnFractionProgress == 0 &&
-                UsesPerTurnProgress > 0);
+                UsesPerTurnProgress > 0;
         }
 
         /// <summary>
@@ -289,7 +289,7 @@ namespace Parry.Combat
 
             if (CanPerform())
             {
-                UsesPerTurnProgress += 1;
+                UsesPerTurnProgress -= 1;
                 PerformAction(current, combatants, targets);
 
                 //Starts the cooldown period if nonzero.
