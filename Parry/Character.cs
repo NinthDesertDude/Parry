@@ -342,7 +342,7 @@ namespace Parry
             Health = new Stat<int>(100);
             Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
             Stats = new Stats();
-            DefaultTargetBehavior = new TargetBehavior(TargetBehavior.Normal);
+            DefaultTargetBehavior = TargetBehavior.Normal;
             MoveSelectBehavior = new MoveSelector();
             DefaultMovementBeforeBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
             DefaultMovementAfterBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);

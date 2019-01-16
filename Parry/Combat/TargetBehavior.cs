@@ -14,34 +14,121 @@ namespace Parry.Combat
         /// <summary>
         /// Prioritizes attackers or weak and nearby enemies.
         /// </summary>
-        public static readonly TargetBehavior Normal;
+        public static TargetBehavior Normal
+        {
+            get
+            {
+                return new TargetBehavior()
+                {
+                    YourThreatFactor = 2,
+                    YourResistFactor = 1,
+                    YourHealthDamageFactor = 10,
+                    GroupAttackFactor = 1,
+                    RetaliationBonus = 20,
+                    InEasyRangeBonus = 20,
+                    EasyDefeatBonus = 20,
+                    NoRiskBonus = 10,
+                    PreviousTargetBonus = 10
+                };
+            }
+        }
 
         /// <summary>
         /// Prioritizes strong and nearby enemies.
         /// </summary>
-        public static readonly TargetBehavior Champion;
+        public static TargetBehavior Champion
+        {
+            get
+            {
+                return new TargetBehavior()
+                {
+                    ThreatOpportunityFactor = 3,
+                    ResistOpportunityFactor = 3,
+                    YourThreatFactor = -1,
+                    YourResistFactor = -1,
+                    YourHealthDamageFactor = -1,
+                    GroupAttackFactor = -1,
+                    RetaliationBonus = 10,
+                    InEasyRangeBonus = 20,
+                    PreviousTargetBonus = 5
+                };
+            }
+        }
 
         /// <summary>
         /// Prioritizes strong enemies that the team can take down, and
         /// enemies already targeted by teammates.
         /// </summary>
-        public static readonly TargetBehavior Hivemind;
+        public static TargetBehavior Hivemind
+        {
+            get
+            {
+                return new TargetBehavior()
+                {
+                    TeamThreatFactor = 5,
+                    TeamHealthDamageFactor = 5,
+                    TeamResistFactor = 5,
+                    GroupAttackFactor = 2,
+                    TeamworkBonus = 2,
+                    InEasyRangeBonus = 5,
+                    PreviousTargetBonus = 5
+                };
+            }
+        }
 
         /// <summary>
         /// Prioritizes attackers first, followed by the nearest target.
         /// </summary>
-        public static readonly TargetBehavior Aggressive;
+        public static TargetBehavior Aggressive
+        {
+            get
+            {
+                return new TargetBehavior()
+                {
+                    IsVindictive = true,
+                    DistanceFactor = 1
+                };
+            }
+        }
 
         /// <summary>
         /// Prioritizes weak nearby enemies.
         /// </summary>
-        public static readonly TargetBehavior Ruthless;
+        public static TargetBehavior Ruthless
+        {
+            get
+            {
+                return new TargetBehavior()
+                {
+                    InEasyRangeBonus = 10,
+                    NoRiskBonus = 10,
+                    EasyDefeatBonus = 10,
+                    YourThreatFactor = 1,
+                    PreviousTargetBonus = 10
+                };
+            }
+        }
 
         /// <summary>
         /// Prioritizes targets closest to the archer or most likely to reach
         /// the archer first based on speed.
         /// </summary>
-        public static readonly TargetBehavior Archer;
+        public static TargetBehavior Archer
+        {
+            get
+            {
+                return new TargetBehavior()
+                {
+                    InEasyRangeBonus = -500,
+                    DistanceFactor = -1,
+                    EasyDefeatBonus = 10,
+                    YourThreatFactor = 2,
+                    YourResistFactor = 1,
+                    YourHealthDamageFactor = 10,
+                    PreviousTargetBonus = 50
+                };
+            }
+        }
         #endregion
 
         #region Variables - Factors and Bonuses
@@ -395,75 +482,6 @@ namespace Parry.Combat
         #endregion
 
         #region Constructors
-        /// <summary>
-        /// Sets up all statically-available default behaviors.
-        /// </summary>
-        static TargetBehavior()
-        {
-            Aggressive = new TargetBehavior()
-            {
-                IsVindictive = true,
-                DistanceFactor = 1
-            };
-
-            Champion = new TargetBehavior()
-            {
-                ThreatOpportunityFactor = 3,
-                ResistOpportunityFactor = 3,
-                YourThreatFactor = -1,
-                YourResistFactor = -1,
-                YourHealthDamageFactor = -1,
-                GroupAttackFactor = -1,
-                RetaliationBonus = 10,
-                InEasyRangeBonus = 20,
-                PreviousTargetBonus = 5
-            };
-
-            Hivemind = new TargetBehavior()
-            {
-                TeamThreatFactor = 5,
-                TeamHealthDamageFactor = 5,
-                TeamResistFactor = 5,
-                GroupAttackFactor = 2,
-                TeamworkBonus = 2,
-                InEasyRangeBonus = 5,
-                PreviousTargetBonus = 5
-            };
-
-            Normal = new TargetBehavior()
-            {
-                YourThreatFactor = 2,
-                YourResistFactor = 1,
-                YourHealthDamageFactor = 10,
-                GroupAttackFactor = 1,
-                RetaliationBonus = 20,
-                InEasyRangeBonus = 20,
-                EasyDefeatBonus = 20,
-                NoRiskBonus = 10,
-                PreviousTargetBonus = 10
-            };
-
-            Ruthless = new TargetBehavior()
-            {
-                InEasyRangeBonus = 10,
-                NoRiskBonus = 10,
-                EasyDefeatBonus = 10,
-                YourThreatFactor = 1,
-                PreviousTargetBonus = 10
-            };
-
-            Archer = new TargetBehavior()
-            {
-                InEasyRangeBonus = -500,
-                DistanceFactor = -1,
-                EasyDefeatBonus = 10,
-                YourThreatFactor = 2,
-                YourResistFactor = 1,
-                YourHealthDamageFactor = 10,
-                PreviousTargetBonus = 50
-            };
-        }
-
         /// <summary>
         /// Sets defaults for tendencies and all factors and bonuses to 0.
         /// </summary>
