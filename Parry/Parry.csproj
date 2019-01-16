@@ -51,12 +51,8 @@
     <Compile Include="Combat\Constants.cs" />
     <Compile Include="Stat.cs" />
     <Compile Include="Character.cs" />
-    <Compile Include="CharacterInstance.cs" />
     <Compile Include="Combat\Session.cs" />
     <Compile Include="ISavable.cs" />
-    <Compile Include="Item.cs" />
-    <Compile Include="ItemCollection.cs" />
-    <Compile Include="ItemInstance.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

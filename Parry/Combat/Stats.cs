@@ -236,7 +236,7 @@ namespace Parry.Combat
         /// <summary>
         /// After receiving damage, a percent of that damage is dealt in its
         /// original damage types (based on index) back to the attacker. This
-        /// does not trigger their own knockback. A value of 100 is 100%.
+        /// does not trigger their own knockback. A value of 1 is 100%.
         /// Default value is 0.
         /// </summary>
         public Stat<float> PercentKnockback

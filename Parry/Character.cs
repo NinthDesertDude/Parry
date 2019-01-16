@@ -301,6 +301,16 @@ namespace Parry
         public event Action<Combatant, List<float>> AttackAfterDamage;
 
         /// <summary>
+        /// The event raised before a character deals knockback damage. This is
+        /// intended to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The attacker.
+        /// Second argument: The targeted combatant.
+        /// Third argument: The amount of damage to deal.
+        /// </summary>
+        public event Action<Combatant, Combatant, float> AttackKnockback;
+
+        /// <summary>
         /// The event raised before a character knocks back a target. This is
         /// intended to be raised by a move action, and will only be raised if
         /// implemented.
@@ -332,7 +342,7 @@ namespace Parry
             Health = new Stat<int>(100);
             Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
             Stats = new Stats();
-            DefaultTargetBehavior = TargetBehavior.Normal;
+            DefaultTargetBehavior = new TargetBehavior(TargetBehavior.Normal);
             MoveSelectBehavior = new MoveSelector();
             DefaultMovementBeforeBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
             DefaultMovementAfterBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
@@ -452,6 +462,11 @@ namespace Parry
         public void RaiseAttackAfterDamage(Combatant targetHit, List<float> damage)
         {
             AttackAfterDamage?.Invoke(targetHit, damage);
+        }
+
+        public void RaiseAttackKnockback(Combatant attacker, Combatant target, float damage)
+        {
+            AttackKnockback?.Invoke(attacker, target, damage);
         }
 
         public void RaiseAttackRecoil(Combatant target, float recoil, Tuple<float, float> newLocation)

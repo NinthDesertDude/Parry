@@ -14,7 +14,7 @@ namespace Parry.Combat
         /// <summary>
         /// The function that defines whether this movement is applied or not.
         /// </summary>
-        public readonly Func<List<Combatant>, bool> Function;
+        public readonly Func<List<Combatant>, bool> ShouldApply;
 
         /// <summary>
         /// The point whose location is used to determine motions.
@@ -32,7 +32,7 @@ namespace Parry.Combat
         /// </summary>
         public Movement(MotionOrigin origin, Motion motion)
         {
-            Function = new Func<List<Combatant>, bool>((o) => true);
+            ShouldApply = new Func<List<Combatant>, bool>((o) => true);
             Origin = origin;
             Motion = motion;
         }
@@ -44,7 +44,7 @@ namespace Parry.Combat
         /// </summary>
         public Movement(Func<List<Combatant>, bool> function, MotionOrigin origin, Motion motion)
         {
-            Function = function;
+            ShouldApply = function;
             Origin = origin;
             Motion = motion;
         }

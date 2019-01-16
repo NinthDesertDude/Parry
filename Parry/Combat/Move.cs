@@ -189,10 +189,7 @@ namespace Parry.Combat
                     ComputeRangeDamageModifier(attacker, target, targetDamage);
                     ComputeDamageReductions(target, targetDamage);
                     ApplyDamage(attacker, target, targetDamage);
-
-                    float knockback = ComputeKnockbackDamage(attacker, target, targetDamage.Sum());
-                    attacker.CurrentHealth.Data -= (int)knockback;
-
+                    ApplyKnockbackDamage(attacker, target, ComputeKnockbackDamage(attacker, target, targetDamage.Sum()));
                     ApplyRecoil(attacker, target, ComputeRecoil(attacker, target));
                 }
             });
@@ -366,16 +363,16 @@ namespace Parry.Combat
             // Compute damage and critical hits.
             for (int j = 0; j < Stats.NUM_TYPES_DAMAGE; j++)
             {
+                baseDamage[j] = charStats.MinDamage.Data[j] + rng.Next(
+                    charStats.MaxDamage.Data[j] - charStats.MinDamage.Data[j] + 1);
+
                 if (rng.Next(100) < charStats.PercentToCritHit.Data[j])
                 {
-                    baseDamage[j] = charStats.MaxDamage.Data[j];
                     critDamage[j] = baseDamage[j] * charStats.CritDamageMultiplier.Data[j];
                     attacker.WrappedChar.RaiseAttackCritHit(j, critDamage[j]);
                 }
                 else
                 {
-                    baseDamage[j] = charStats.MinDamage.Data[j] + rng.Next(
-                        charStats.MaxDamage.Data[j] - charStats.MinDamage.Data[j]);
                     critDamage[j] = baseDamage[j];
                 }
             }
@@ -428,9 +425,13 @@ namespace Parry.Combat
             else
             {
                 double bias = dist / charStats.MaxRangeAllowed.Data;
-                double multiplier = (1 - bias) * charStats.MinRangeMultiplier.Data
-                    + bias * charStats.MaxRangeMultiplier.Data;
-                damage.ForEach(num => num *= (float)multiplier);
+                double multiplier = Math.Round((1 - bias) * charStats.MinRangeMultiplier.Data
+                    + bias * charStats.MaxRangeMultiplier.Data, 6);
+
+                for (int i = 0; i < damage.Count; i++)
+                {
+                    damage[i] = damage[i] * (float)multiplier;
+                }
             }
         }
 
@@ -511,8 +512,9 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static void ApplyKnockbackDamage(Combatant attacker, float knockback)
+        public static void ApplyKnockbackDamage(Combatant attacker, Combatant target, float knockback)
         {
+            attacker.WrappedChar.RaiseAttackKnockback(attacker, target, knockback);
             attacker.CurrentHealth.Data -= (int)knockback;
         }
 
@@ -537,8 +539,8 @@ namespace Parry.Combat
                     attacker.WrappedChar.Location.Data.Item1);
 
                 var newLocation = new Tuple<float, float>(
-                    (float)(recoil * Math.Cos(recoilDir)),
-                    (float)(recoil * Math.Sin(recoilDir)));
+                    (float)Math.Round(target.WrappedChar.Location.Data.Item1 + recoil * Math.Cos(recoilDir), 10),
+                    (float)Math.Round(target.WrappedChar.Location.Data.Item2 + recoil * Math.Sin(recoilDir), 10));
 
                 return new Tuple<float, Tuple<float, float>>(recoil, newLocation);
             }
