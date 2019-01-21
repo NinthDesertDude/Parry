@@ -25,7 +25,7 @@ namespace ParryLaunchTester
             player.Stats.MaxDamage.Data[0] = 1;
             player.Stats.MaxRangeAllowed.Data = 1;
             player.Stats.MoveSpeed.Data = 3;
-            //player.Location.Data = new Tuple<float, float>(50, 40);
+            player.Location.Data = new Tuple<float, float>(50, 40);
 
             Character enemy1 = GenerateCharacter("Bunny", 1);
             enemy1.Health.Data = 20;
@@ -34,7 +34,7 @@ namespace ParryLaunchTester
             enemy1.Stats.MaxDamage.Data[0] = 100;
             enemy1.Stats.MaxRangeAllowed.Data = 2;
             enemy1.Stats.MoveSpeed.Data = 10;
-            //enemy1.Location.Data = new Tuple<float, float>(30, -10);
+            enemy1.Location.Data = new Tuple<float, float>(30, -10);
 
             Character enemy2 = GenerateCharacter("Bandit", 1);
             enemy2.Health.Data = 20;
@@ -43,8 +43,7 @@ namespace ParryLaunchTester
             enemy2.Stats.MaxDamage.Data[0] = 100;
             enemy2.Stats.MaxRangeAllowed.Data = 2;
             enemy2.Stats.MoveSpeed.Data = 10;
-            //enemy2.Location.Data = new Tuple<float, float>(0, 45);
-
+            enemy2.Location.Data = new Tuple<float, float>(0, 45);
 
             session.AddCharacter(player);
             session.AddCharacter(enemy1);
@@ -101,7 +100,7 @@ namespace ParryLaunchTester
 
                     if (choice == 1)
                     {
-                        var targets = session.Combatants[0].Where(o => o.WrappedChar != player).ToList();
+                        var targets = session.GetCombatants()[0].Where(o => o.WrappedChar != player).ToList();
                         List<string> targetNames = new List<string>();
                         for (int i = 0; i < targets.Count; i++)
                         {
@@ -138,7 +137,7 @@ namespace ParryLaunchTester
                     }
 
                     // Targeting.
-                    var enemiess = session.Combatants[0].Where(o => o.WrappedChar != player).ToList();
+                    var enemiess = session.GetCombatants()[0].Where(o => o.WrappedChar != player).ToList();
                     List<string> targetNamess = new List<string>();
                     for (int i = 0; i < enemiess.Count; i++)
                     {

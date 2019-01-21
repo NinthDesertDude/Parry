@@ -51,9 +51,30 @@
         /// </summary>
         public Combatant(Character character)
         {
+            Speed = 0;
             AccumulatedSpeed = 0;
             CurrentHealth = character.Health;
             WrappedChar = character;
+        }
+
+        /// <summary>
+        /// Copy constructor. If isDeepCopy is true, creates a deep copy of
+        /// the underlying character, keeping the same character id.
+        /// </summary>
+        public Combatant(Combatant other, bool isDeepCopy = false)
+        {
+            Speed = other.Speed;
+            AccumulatedSpeed = other.Speed;
+            CurrentHealth = new Stat<int>(other.CurrentHealth.RawData);
+
+            if (isDeepCopy)
+            {
+                WrappedChar = new Character(other.WrappedChar, true);
+            }
+            else
+            {
+                WrappedChar = new Character(other.WrappedChar);
+            }
         }
         #endregion
     }

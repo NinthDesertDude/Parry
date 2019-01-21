@@ -10,13 +10,23 @@ namespace Parry
     /// </summary>
     public class Character
     {
-        private static long Guid = 0;
-
         #region Properties
+        /// <summary>
+        /// A unique identifier between unrelated characters, though deep
+        /// copies of this character may share the same guid so they can be
+        /// directly associated.
+        /// </summary>
+        private static long id = 0;
+
         /// <summary>
         /// A unique character ID, shared only by deep clones that copy guids.
         /// </summary>
         public readonly long Id;
+
+        /// <summary>
+        /// A read-only copy of this character used to 
+        /// </summary>
+        public Character Snapshot { get; private set; }
 
         /// <summary>
         /// In combat, this is the character's total possible health.
@@ -337,7 +347,8 @@ namespace Parry
         /// </summary>
         public Character()
         {
-            Id = Guid++;
+            Snapshot = null;
+            Id = id++;
             TeamID = 0;
             Health = new Stat<int>(100);
             Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
@@ -358,12 +369,14 @@ namespace Parry
         /// Creates a shallow or deep copy of another character, generating a
         /// new id if desired. Having characters with the same id allows for an
         /// efficent way of identifying related clones, as with combat history.
+        /// Deep copies have no snapshots.
         /// </summary>
         public Character(Character other, bool isDeepCopy = false, bool newId = false)
         {
             if (!isDeepCopy)
             {
-                Id = (newId) ? Guid++ : other.Id;
+                Snapshot = other.Snapshot;
+                Id = (newId) ? id++ : other.Id;
                 TeamID = other.TeamID;
                 Health = other.Health;
                 Location = other.Location;
@@ -381,7 +394,8 @@ namespace Parry
             }
             else
             {
-                Id = (newId) ? Guid++ : other.Id;
+                Snapshot = null;
+                Id = (newId) ? id++ : other.Id;
                 TeamID = other.TeamID;
                 Health = new Stat<int>(other.Health.RawData);
                 Location = new Stat<Tuple<float, float>>(other.Location.RawData);
@@ -430,6 +444,14 @@ namespace Parry
             }
 
             return new List<Combatant>();
+        }
+
+        /// <summary>
+        /// Takes a deep copy of this character to update the snapshot.
+        /// </summary>
+        public void TakeSnapshot()
+        {
+            Snapshot = new Character(this, true);
         }
         #endregion
 

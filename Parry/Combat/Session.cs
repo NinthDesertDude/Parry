@@ -23,11 +23,7 @@ namespace Parry.Combat
         /// are organized by combat speed, with simultaneous combatants
         /// organized by original relative position in the list.
         /// </summary>
-        public List<List<Combatant>> Combatants
-        {
-            private set;
-            get;
-        }
+        private List<List<Combatant>> combatants;
 
         /// <summary>
         /// Stores current combatants in turn order.
@@ -57,25 +53,12 @@ namespace Parry.Combat
 
         #region Public Variables
         /// <summary>
-        /// When true, instead of stopping combat when there's only one team
-        /// left, each remaining combatant's team ID will be set to a unique
-        /// value starting at 0 and counting up. Then combat will continue
-        /// until there is only one character left or it's manually stopped.
-        /// False by default.
+        /// When true, AI will execute turn-by-turn using the latest game state
+        /// rather than making all decisions at the start of the round. It will
+        /// come into effect at the start of the next round after turning on.
+        /// Default value is false.
         /// </summary>
-        public bool FreeForAllEnabled
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// When true, the minimum speed among all combatants is subtracted
-        /// from each combatant's speed last round, and the remainder is added
-        /// to the next round.
-        /// False by default.
-        /// </summary>
-        public bool SpeedCarriesOver
+        public bool AsynchronousTurnsEnabled
         {
             get;
             set;
@@ -94,12 +77,13 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// When enabled, combatants with the same speed will take their turns
-        /// in order without flushing the add and remove queues between. This
-        /// allows e.g. two combatants to deal lethal damage to each other.
+        /// When true, instead of stopping combat when there's only one team
+        /// left, each remaining combatant's team ID will be set to a unique
+        /// value starting at 0 and counting up. Then combat will continue
+        /// until there is only one character left or it's manually stopped.
         /// False by default.
         /// </summary>
-        public bool SimultaneousTurnsEnabled
+        public bool FreeForAllEnabled
         {
             get;
             set;
@@ -112,6 +96,30 @@ namespace Parry.Combat
         /// 10 by default.
         /// </summary>
         public int RoundHistoryLimit
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// When enabled, combatants with the same speed will take their turns
+        /// in order without flushing the add and remove queues between. This
+        /// allows e.g. two combatants to deal lethal damage to each other.
+        /// False by default.
+        /// </summary>
+        public bool SimultaneousTurnsEnabled
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// When true, the minimum speed among all combatants is subtracted
+        /// from each combatant's speed last round, and the remainder is added
+        /// to the next round.
+        /// False by default.
+        /// </summary>
+        public bool SpeedCarriesOver
         {
             get;
             set;
@@ -218,6 +226,7 @@ namespace Parry.Combat
         /// </summary>
         public Session()
         {
+            AsynchronousTurnsEnabled = false;
             ResetSession();
             FreeForAllEnabled = false;
             SpeedCarriesOver = false;
@@ -234,19 +243,19 @@ namespace Parry.Combat
         /// </summary>
         private List<Combatant> GetTurnOrder()
         {
-            if (Combatants.Count == 0)
+            if (combatants.Count == 0)
             {
                 return new List<Combatant>();
             }
 
-            Combatants[0].ForEach(o =>
+            combatants[0].ForEach(o =>
             {
                 o.Speed = o.WrappedChar.Stats.MoveSpeed.Data
-                    + o.WrappedChar.MoveSelectBehavior.Perform(Combatants).MoveSpeed;
+                    + o.WrappedChar.MoveSelectBehavior.Perform(combatants).MoveSpeed;
             });
 
-            int minSpeed = Combatants[0].Min(o => o.Speed);
-            Combatants[0].ForEach(o =>
+            int minSpeed = combatants[0].Min(o => o.Speed);
+            combatants[0].ForEach(o =>
             {
                 if (SpeedCarriesOver)
                 {
@@ -255,7 +264,28 @@ namespace Parry.Combat
                 }
             });
 
-            return Combatants[0].OrderByDescending(o => o.Speed).ToList();
+            // Organizes by groups for first, normal priority, last all by speed.
+            List<Combatant> orderedCombatants = combatants[0].OrderByDescending(o => o.Speed).ToList();
+            List<Combatant> firstCombatants = new List<Combatant>();
+            List<Combatant> lastCombatants = new List<Combatant>();
+            
+            for (int i = orderedCombatants.Count - 1; i >= 0; i--)
+            {
+                if (orderedCombatants[i].WrappedChar.Stats.SpeedStatus.Data == Constants.SpeedStatuses.AlwaysFirst)
+                {
+                    firstCombatants.Insert(0, orderedCombatants[i]);
+                    orderedCombatants.RemoveAt(i);
+                }
+                else if (orderedCombatants[i].WrappedChar.Stats.SpeedStatus.Data == Constants.SpeedStatuses.AlwaysLast)
+                {
+                    lastCombatants.Insert(0, orderedCombatants[i]);
+                    orderedCombatants.RemoveAt(i);
+                }
+            }
+
+            firstCombatants.AddRange(orderedCombatants);
+            firstCombatants.AddRange(lastCombatants);
+            return firstCombatants;
         }
 
         /// <summary>
@@ -269,7 +299,14 @@ namespace Parry.Combat
             List<Combatant> targets,
             Move chosenMove)
         {
-            chosenMove.Perform(combatant, Combatants[0], targets);
+            if (AsynchronousTurnsEnabled)
+            {
+                chosenMove.Perform(combatant, combatants[0], targets, AsynchronousTurnsEnabled);
+            }
+            else
+            {
+                chosenMove.Perform(combatant, combatants[0], targets, AsynchronousTurnsEnabled);
+            }
         }
 
         /// <summary>
@@ -289,10 +326,10 @@ namespace Parry.Combat
 
             if (chosenMove.MovementBeforeBehavior == null)
             {
-                return combatant.WrappedChar.DefaultMovementBeforeBehavior.Perform(Combatants[0], combatant, chosenMove);
+                return combatant.WrappedChar.DefaultMovementBeforeBehavior.Perform(combatants[0], combatant, chosenMove);
             }
 
-            return chosenMove.MovementBeforeBehavior.Perform(Combatants[0], combatant, chosenMove);
+            return chosenMove.MovementBeforeBehavior.Perform(combatants[0], combatant, chosenMove);
         }
 
         /// <summary>
@@ -312,10 +349,10 @@ namespace Parry.Combat
 
             if (chosenMove.MovementAfterBehavior == null)
             {
-                return combatant.WrappedChar.DefaultMovementAfterBehavior.Perform(Combatants[0], combatant, chosenMove);
+                return combatant.WrappedChar.DefaultMovementAfterBehavior.Perform(combatants[0], combatant, chosenMove);
             }
 
-            return chosenMove.MovementAfterBehavior.Perform(Combatants[0], combatant, chosenMove);
+            return chosenMove.MovementAfterBehavior.Perform(combatants[0], combatant, chosenMove);
         }
 
         /// <summary>
@@ -327,7 +364,7 @@ namespace Parry.Combat
         /// </param>
         private Move PerformMoveSelect()
         {
-            return combatant.WrappedChar.MoveSelectBehavior.Perform(Combatants);
+            return combatant.WrappedChar.MoveSelectBehavior.Perform(combatants);
         }
 
         /// <summary>
@@ -343,10 +380,10 @@ namespace Parry.Combat
 
             if (chosenMove.TargetBehavior == null)
             {
-                return combatant.WrappedChar.DefaultTargetBehavior.Perform(Combatants, combatant);
+                return combatant.WrappedChar.DefaultTargetBehavior.Perform(combatants, combatant);
             }
 
-            return chosenMove.TargetBehavior.Perform(Combatants, combatant);
+            return chosenMove.TargetBehavior.Perform(combatants, combatant);
         }
 
         /// <summary>
@@ -362,10 +399,10 @@ namespace Parry.Combat
 
             if (chosenMove.TargetBehavior == null)
             {
-                return combatant.WrappedChar.DefaultTargetBehavior.PostMovePerform(Combatants, combatant);
+                return combatant.WrappedChar.DefaultTargetBehavior.PostMovePerform(combatants, combatant);
             }
 
-            return chosenMove.TargetBehavior.PostMovePerform(Combatants, combatant);
+            return chosenMove.TargetBehavior.PostMovePerform(combatants, combatant);
         }
 
         /// <summary>
@@ -446,12 +483,12 @@ namespace Parry.Combat
         public void StartSession()
         {
             combatant = null;
-            Combatants.Clear();
-            Combatants.Add(new List<Combatant>());
+            combatants.Clear();
+            combatants.Add(new List<Combatant>());
             
             for (int i = 0; i < combatantsToAdd.Count; i++)
             {
-                Combatants[0].Add(combatantsToAdd[i]);
+                combatants[0].Add(combatantsToAdd[i]);
                 CharacterAdded?.Invoke(combatantsToAdd[i]);
                 combatantsToAdd[i].WrappedChar.RaiseCharacterAdded();
             }
@@ -469,6 +506,14 @@ namespace Parry.Combat
         /// </summary>
         public void ExecuteRound()
         {
+            if (!AsynchronousTurnsEnabled)
+            {
+                for (int i = 0; i < combatantsInOrder.Count; i++)
+                {
+                    combatantsInOrder[i].WrappedChar.TakeSnapshot();
+                }
+            }
+
             RoundStarting?.Invoke();
 
             while (NextTurn())
@@ -480,18 +525,18 @@ namespace Parry.Combat
             combatantsInOrder.Clear();
 
             //Adds to history.
-            if (Combatants.Count > 0)
+            if (combatants.Count > 0)
             {
                 List<Combatant> previousRound = new List<Combatant>();
-                for (int i = 0; i < Combatants[0].Count; i++)
+                for (int i = 0; i < combatants[0].Count; i++)
                 {
-                    previousRound.Add(new Combatant(new Character(Combatants[0][i].WrappedChar, true)));
+                    previousRound.Add(new Combatant(new Character(combatants[0][i].WrappedChar, true)));
                 }
 
-                Combatants.Insert(1, previousRound);
-                if (Combatants.Count - 1 > RoundHistoryLimit)
+                combatants.Insert(1, previousRound);
+                if (combatants.Count - 1 > RoundHistoryLimit)
                 {
-                    Combatants.RemoveAt(Combatants.Count - 1);
+                    combatants.RemoveAt(combatants.Count - 1);
                 }
 
                 //Removes characters.
@@ -499,18 +544,18 @@ namespace Parry.Combat
                 {
                     CharacterRemoved?.Invoke(combatantsToRemove[i]);
                     combatantsToRemove[i].RaiseCharacterRemoved();
-                    Combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
+                    combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
                 }
             }
             else
             {
-                Combatants.Add(new List<Combatant>());
+                combatants.Add(new List<Combatant>());
             }
 
             //Adds characters.
             for (int i = 0; i < combatantsToAdd.Count; i++)
             {
-                Combatants[0].Add(combatantsToAdd[i]);
+                combatants[0].Add(combatantsToAdd[i]);
                 CharacterAdded?.Invoke(combatantsToAdd[i]);
                 combatantsToAdd[i].WrappedChar.RaiseCharacterAdded();
             }
@@ -534,6 +579,16 @@ namespace Parry.Combat
         /// </summary>
         public void ExecuteTurn()
         {
+            int indexOfCombatant = combatantsInOrder.IndexOf(combatant);
+
+            if (indexOfCombatant == 0 && !AsynchronousTurnsEnabled)
+            {
+                for (int i = 0; i < combatantsInOrder.Count; i++)
+                {
+                    combatantsInOrder[i].WrappedChar.TakeSnapshot();
+                }
+            }
+
             // Start of turn
             TurnStart?.Invoke(combatant);
             combatant.WrappedChar.RaiseTurnStart();
@@ -591,20 +646,18 @@ namespace Parry.Combat
             combatant.WrappedChar.RaiseTurnEnd();
 
             // Handles actions after each turn
-            int indexOfCombatant = combatantsInOrder.IndexOf(combatant);
-
             if (!SimultaneousTurnsEnabled ||
                 indexOfCombatant == combatantsInOrder.Count - 1 ||
                 combatantsInOrder[indexOfCombatant].Speed >
                 combatantsInOrder[indexOfCombatant + 1].Speed)
             {
-                for (int i = 0; i < Combatants[0].Count; i++)
+                for (int i = 0; i < combatants[0].Count; i++)
                 {
-                    if (Combatants[0][i].CurrentHealth.Data <= 0 &&
-                        Combatants[0][i].WrappedChar.Stats.HealthStatus.Data ==
+                    if (combatants[0][i].CurrentHealth.Data <= 0 &&
+                        combatants[0][i].WrappedChar.Stats.HealthStatus.Data ==
                         Constants.HealthStatuses.RemoveAtZero)
                     {
-                        combatantsToRemove.Add(Combatants[0][i].WrappedChar);
+                        combatantsToRemove.Add(combatants[0][i].WrappedChar);
                     }
                 }
 
@@ -633,8 +686,8 @@ namespace Parry.Combat
         /// </summary>
         public bool HasNextRound()
         {
-            return Combatants[0].Count != 0 && Combatants[0].Any(o =>
-                o.WrappedChar.TeamID != Combatants[0][0].WrappedChar.TeamID);
+            return combatants[0].Count != 0 && combatants[0].Any(o =>
+                o.WrappedChar.TeamID != combatants[0][0].WrappedChar.TeamID);
         }
 
         /// <summary>
@@ -668,14 +721,14 @@ namespace Parry.Combat
         /// </summary>
         private void FlushCombatantQueue()
         {
-            if (Combatants.Count == 0 || combatantsInOrder.Count == 0)
+            if (combatants.Count == 0 || combatantsInOrder.Count == 0)
             {
                 return;
             }
 
             for (int i = 0; i < combatantsToRemove.Count; i++)
             {
-                Combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
+                combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
                 combatantsInOrder.RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
                 CharacterRemoved?.Invoke(combatantsToRemove[i]);
                 combatantsToRemove[i].RaiseCharacterRemoved();
@@ -684,16 +737,16 @@ namespace Parry.Combat
             combatantsToAdd.ForEach(o =>
             {
                 o.Speed = o.WrappedChar.Stats.MoveSpeed.Data
-                    + o.WrappedChar.MoveSelectBehavior.Perform(Combatants).MoveSpeed;
+                    + o.WrappedChar.MoveSelectBehavior.Perform(combatants).MoveSpeed;
             });
 
-            int minSpeed = (Combatants[0].Count > 0)
-                ? Combatants[0].Min(o => o.Speed)
+            int minSpeed = (combatants[0].Count > 0)
+                ? combatants[0].Min(o => o.Speed)
                 : 0;
 
             combatantsToAdd.ForEach(o =>
             {
-                Combatants[0].Add(o);
+                combatants[0].Add(o);
                 combatantsInOrder.Add(o);
                 CharacterAdded?.Invoke(o);
                 o.WrappedChar.RaiseCharacterAdded();
@@ -705,9 +758,23 @@ namespace Parry.Combat
                 }
             });
 
-            combatantsInOrder = (Combatants[0].Count > 0)
-                ? Combatants[0].OrderByDescending(o => o.Speed).ToList()
+            combatantsInOrder = (combatants[0].Count > 0)
+                ? combatants[0].OrderByDescending(o => o.Speed).ToList()
                 : new List<Combatant>();
+        }
+
+        /// <summary>
+        /// Returns a copy of the combatants list.
+        /// </summary>
+        public List<List<Combatant>> GetCombatants()
+        {
+            List<List<Combatant>> combatHistory = new List<List<Combatant>>();
+            for (int i = 0; i < combatants.Count; i++)
+            {
+                combatHistory.Add(new List<Combatant>(combatants[i]));
+            }
+
+            return combatHistory;
         }
 
         /// <summary>
@@ -756,9 +823,9 @@ namespace Parry.Combat
         /// </summary>
         public void RemoveAllCharacters()
         {
-            for (int i = 0; i < Combatants.Count; i++)
+            for (int i = 0; i < combatants.Count; i++)
             {
-                combatantsToRemove.Add(Combatants[0][i].WrappedChar);
+                combatantsToRemove.Add(combatants[0][i].WrappedChar);
             }
         }
 
@@ -767,7 +834,7 @@ namespace Parry.Combat
         /// </summary>
         public void ResetSession()
         {
-            Combatants = new List<List<Combatant>>();
+            combatants = new List<List<Combatant>>();
             combatantsInOrder = new List<Combatant>();
             combatant = null;
             combatantsToRemove = new List<Character>();
