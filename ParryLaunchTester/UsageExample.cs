@@ -17,33 +17,36 @@ namespace ParryLaunchTester
 
             Out("You're walking through a dank dungeon when you encounter a bandit!", true);
             Character player = GenerateCharacter("player", 0);
-            player.DefaultMovementBeforeBehavior.Targets = new List<Combatant>();
-            player.DefaultMovementAfterBehavior.Targets = new List<Combatant>();
-            player.Health.Data = 20;
-            player.Stats.MovementRate.Data = 3;
-            player.Stats.MinDamage.Data[0] = 1;
-            player.Stats.MaxDamage.Data[0] = 1;
-            player.Stats.MaxRangeAllowed.Data = 1;
-            player.Stats.MoveSpeed.Data = 3;
-            player.Location.Data = new Tuple<float, float>(50, 40);
+            player.DefaultMovementBeforeBehavior.Targets = new List<Character>();
+            player.DefaultMovementAfterBehavior.Targets = new List<Character>();
+            player.CharStats.MaxHealth.Data = 40;
+            player.CharStats.Health.Data = 40;
+            player.CombatStats.MovementRate.Data = 3;
+            player.CombatStats.MinDamage.Data[0] = 1;
+            player.CombatStats.MaxDamage.Data[0] = 1;
+            player.CombatStats.MaxRangeAllowed.Data = 1;
+            player.CombatStats.MoveSpeed.Data = 3;
+            player.CharStats.Location.Data = new Tuple<float, float>(50, 40);
 
             Character enemy1 = GenerateCharacter("Bunny", 1);
-            enemy1.Health.Data = 20;
-            enemy1.Stats.MovementRate.Data = 20;
-            enemy1.Stats.MinDamage.Data[0] = 100;
-            enemy1.Stats.MaxDamage.Data[0] = 100;
-            enemy1.Stats.MaxRangeAllowed.Data = 2;
-            enemy1.Stats.MoveSpeed.Data = 10;
-            enemy1.Location.Data = new Tuple<float, float>(30, -10);
+            enemy1.CharStats.MaxHealth.Data = 20;
+            enemy1.CharStats.Health.Data = 20;
+            enemy1.CombatStats.MovementRate.Data = 20;
+            enemy1.CombatStats.MinDamage.Data[0] = 1;
+            enemy1.CombatStats.MaxDamage.Data[0] = 5;
+            enemy1.CombatStats.MaxRangeAllowed.Data = 2;
+            enemy1.CombatStats.MoveSpeed.Data = 10;
+            enemy1.CharStats.Location.Data = new Tuple<float, float>(30, -10);
 
             Character enemy2 = GenerateCharacter("Bandit", 1);
-            enemy2.Health.Data = 20;
-            enemy2.Stats.MovementRate.Data = 20;
-            enemy2.Stats.MinDamage.Data[0] = 100;
-            enemy2.Stats.MaxDamage.Data[0] = 100;
-            enemy2.Stats.MaxRangeAllowed.Data = 2;
-            enemy2.Stats.MoveSpeed.Data = 10;
-            enemy2.Location.Data = new Tuple<float, float>(0, 45);
+            enemy2.CharStats.MaxHealth.Data = 20;
+            enemy2.CharStats.Health.Data = 20;
+            enemy2.CombatStats.MovementRate.Data = 20;
+            enemy2.CombatStats.MinDamage.Data[0] = 1;
+            enemy2.CombatStats.MaxDamage.Data[0] = 10;
+            enemy2.CombatStats.MaxRangeAllowed.Data = 2;
+            enemy2.CombatStats.MoveSpeed.Data = 10;
+            enemy2.CharStats.Location.Data = new Tuple<float, float>(0, 45);
 
             session.AddCharacter(player);
             session.AddCharacter(enemy1);
@@ -59,39 +62,40 @@ namespace ParryLaunchTester
                     choice = OutMenu("Inventory Menu", "Equip stick", "Equip longsword", "Equip God's Blade");
                     if (choice == 1)
                     {
-                        player.Stats.MinDamage.Data[0] = 1;
-                        player.Stats.MaxDamage.Data[0] = 1;
-                        player.Stats.MaxRangeAllowed.Data = 1;
-                        player.Stats.PercentToHit.Data = 100;
-                        player.Stats.PercentToCritHit.Data[0] = 0;
-                        player.Stats.MoveSpeed.Data = 3;
+                        player.CombatStats.MinDamage.Data[0] = 1;
+                        player.CombatStats.MaxDamage.Data[0] = 1;
+                        player.CombatStats.MaxRangeAllowed.Data = 1;
+                        player.CombatStats.PercentToHit.Data = 100;
+                        player.CombatStats.PercentToCritHit.Data[0] = 0;
+                        player.CombatStats.MoveSpeed.Data = 3;
                         OutGreen("Stick equipped.", true);
                     }
                     else if (choice == 2)
                     {
-                        player.Stats.MinDamage.Data[0] = 2;
-                        player.Stats.MaxDamage.Data[0] = 10;
-                        player.Stats.MaxRangeAllowed.Data = 6;
-                        player.Stats.PercentToHit.Data = 90;
-                        player.Stats.PercentToCritHit.Data[0] = 10;
-                        player.Stats.MoveSpeed.Data = 3;
+                        player.CombatStats.MinDamage.Data[0] = 2;
+                        player.CombatStats.MaxDamage.Data[0] = 10;
+                        player.CombatStats.MaxRangeAllowed.Data = 6;
+                        player.CombatStats.PercentToHit.Data = 90;
+                        player.CombatStats.PercentToCritHit.Data[0] = 10;
+                        player.CombatStats.MoveSpeed.Data = 3;
                         OutGreen("Longsword equipped.", true);
                     }
                     else if (choice == 3)
                     {
-                        player.Stats.MinDamage.Data[0] = 5;
-                        player.Stats.MaxDamage.Data[0] = 15;
-                        player.Stats.MaxRangeAllowed.Data = 8;
-                        player.Stats.PercentToHit.Data = 50;
-                        player.Stats.PercentToCritHit.Data[0] = 15;
-                        player.Stats.MoveSpeed.Data = 1;
+                        player.CombatStats.MinDamage.Data[0] = 5;
+                        player.CombatStats.MaxDamage.Data[0] = 15;
+                        player.CombatStats.MaxRangeAllowed.Data = 8;
+                        player.CombatStats.PercentToHit.Data = 50;
+                        player.CombatStats.PercentToCritHit.Data[0] = 15;
+                        player.CombatStats.MoveSpeed.Data = 1;
                         OutGreen("God's Blade equipped.", true);
                     }
                 }
                 else if (choice == 2)
                 {
                     player.CombatMoveEnabled.Data = true;
-                    player.CombatMovementEnabled.Data = true;
+                    player.CombatMovementAfterEnabled.Data = true;
+                    player.CombatMovementBeforeEnabled.Data = true;
                     player.CombatMoveSelectEnabled.Data = true;
                     player.CombatTargetingEnabled.Data = true;
 
@@ -100,16 +104,16 @@ namespace ParryLaunchTester
 
                     if (choice == 1)
                     {
-                        var targets = session.GetCombatants()[0].Where(o => o.WrappedChar != player).ToList();
+                        var targets = session.GetChars()[0].Where(o => o != player).ToList();
                         List<string> targetNames = new List<string>();
                         for (int i = 0; i < targets.Count; i++)
                         {
-                            targetNames.Add(targets[i].WrappedChar.Stats.CustomStats["name"] as string);
+                            targetNames.Add(targets[i].CombatStats.CustomStats["name"] as string);
                         }
                         choice = OutMenu("Select target to move towards", targetNames.ToArray());
                         player.DefaultMovementBeforeBehavior.TargetLocations.Clear();
                         player.DefaultMovementBeforeBehavior.TargetLocations.Add(targets.FirstOrDefault(o =>
-                            o.WrappedChar.Stats.CustomStats["name"] as string == targetNames[choice - 1]).WrappedChar.Location.Data);
+                            o.CombatStats.CustomStats["name"] as string == targetNames[choice - 1]).CharStats.Location.Data);
                     }
                     else if (choice == 2)
                     {
@@ -133,32 +137,37 @@ namespace ParryLaunchTester
                     }
                     else if (choice == 3)
                     {
-                        player.CombatMovementEnabled.Data = false;
+                        player.CombatMovementAfterEnabled.Data = false;
+                        player.CombatMovementBeforeEnabled.Data = false;
                     }
 
                     // Targeting.
-                    var enemiess = session.GetCombatants()[0].Where(o => o.WrappedChar != player).ToList();
+                    var enemiess = session.GetChars()[0].Where(o => o != player).ToList();
                     List<string> targetNamess = new List<string>();
                     for (int i = 0; i < enemiess.Count; i++)
                     {
-                        targetNamess.Add(enemiess[i].WrappedChar.Stats.CustomStats["name"] as string);
+                        targetNamess.Add(enemiess[i].CombatStats.CustomStats["name"] as string);
                     }
                     choice = OutMenu("Select target", targetNamess.ToArray());
-                    player.DefaultTargetBehavior.OverrideTargets = new List<Combatant>();
+                    player.DefaultTargetBehavior.OverrideTargets = new List<Character>();
                     player.DefaultTargetBehavior.OverrideTargets.Add(enemiess.FirstOrDefault(
-                        o => o.WrappedChar.Stats.CustomStats["name"] as string == targetNamess[choice - 1]));
+                        o => o.CombatStats.CustomStats["name"] as string == targetNamess[choice - 1]));
 
                     while (session.HasNextTurn())
                     {
                         session.NextTurn();
                         session.ExecuteTurn();
                     }
-                    session.NextRound();
+                    if (!session.NextRound())
+                    {
+                        break;
+                    }
                 }
                 else if (choice == 3)
                 {
                     player.CombatMoveEnabled.Data = false;
-                    player.CombatMovementEnabled.Data = false;
+                    player.CombatMovementAfterEnabled.Data = false;
+                    player.CombatMovementBeforeEnabled.Data = false;
                     player.CombatMoveSelectEnabled.Data = false;
                     player.CombatTargetingEnabled.Data = false;
 
@@ -167,27 +176,40 @@ namespace ParryLaunchTester
                         session.NextTurn();
                         session.ExecuteTurn();
                     }
-                    session.NextRound();
+                    if (!session.NextRound())
+                    {
+                        break;
+                    }
                 }
             }
+
+            if (player.CharStats.Health.Data <= 0)
+            {
+                OutRed("You are dead.", true);
+            }
+            else
+            {
+                OutGreen("Victory!", true);
+            }
+            Console.ReadKey();
         }
 
         public static Character GenerateCharacter(string name, int teamId)
         {
             Character chr = new Character();
-            chr.Stats = new Stats();
-            chr.Stats.CustomStats.Add("name", name);
+            chr.CombatStats = new CombatStats();
+            chr.CombatStats.CustomStats.Add("name", name);
             chr.TeamID = teamId;
 
             chr.TurnStart += () => {
-                OutCyan($"{chr.Stats.CustomStats["name"]}'s turn. Location: ({chr.Location.Data.Item1},{chr.Location.Data.Item2}).");
+                OutCyan($"{chr.CombatStats.CustomStats["name"]}'s turn. Location: ({chr.CharStats.Location.Data.Item1},{chr.CharStats.Location.Data.Item2}).");
             };
 
             chr.AttackMissed += (a) => {
                 if (a != null)
                 {
                     Out("", true);
-                    Out($"Missed {a.WrappedChar.Stats.CustomStats["name"]}. ");
+                    Out($"Missed {a.CombatStats.CustomStats["name"]}. ");
                 }
                 else
                 {
@@ -203,16 +225,16 @@ namespace ParryLaunchTester
 
             chr.AttackBeforeDamage += (a, b) => {
                 Out("", true);
-                Out($"{chr.Stats.CustomStats["name"]} takes a swing. ");
+                Out($"{chr.CombatStats.CustomStats["name"]} takes a swing. ");
                 Out("", true);
-                Out($"{a.WrappedChar.Stats.CustomStats["name"]} takes {b.Sum()} damage and has {a.CurrentHealth.Data - b.Sum()} health. ");
+                Out($"{a.CombatStats.CustomStats["name"]} takes {b.Sum()} damage and has {a.CharStats.Health.Data - b.Sum()} health. ");
             };
 
             chr.AttackRecoil += (a, b, c) => {
                 if (b > 0)
                 {
                     Out("", true);
-                    OutGreen($"Knocked {a.WrappedChar.Stats.CustomStats["name"]} to ");
+                    OutGreen($"Knocked {a.CombatStats.CustomStats["name"]} to ");
                     OutCyan($"({c.Item1}, {c.Item2}). ");
                 }
             };
@@ -221,7 +243,7 @@ namespace ParryLaunchTester
                 if (c > 0)
                 {
                     Out("", true);
-                    OutGreen($"{a.WrappedChar.Stats.CustomStats["name"]} took {c} knockback damage and has {a.CurrentHealth.Data - c} health. ");
+                    OutGreen($"{a.CombatStats.CustomStats["name"]} took {c} knockback damage and has {a.CharStats.Health.Data - c} health. ");
                 }
             };
 
@@ -232,21 +254,21 @@ namespace ParryLaunchTester
 
             chr.MovementBeforeSelected += (a) =>
             {
-                if (chr.Location.Data.Item1 != a.Item1 ||
-                    chr.Location.Data.Item2 != a.Item2)
+                if (chr.CharStats.Location.Data.Item1 != a.Item1 ||
+                    chr.CharStats.Location.Data.Item2 != a.Item2)
                 {
                     Out("", true);
-                    OutCyan($"Moving from ({a.Item1}, {a.Item2}) to ({chr.Location.Data.Item1},{chr.Location.Data.Item2}).");
+                    OutCyan($"Moving from ({a.Item1}, {a.Item2}) to ({chr.CharStats.Location.Data.Item1},{chr.CharStats.Location.Data.Item2}).");
                 }
             };
 
             chr.MovementAfterSelected += (a) =>
             {
-                if (chr.Location.Data.Item1 != a.Item1 ||
-                    chr.Location.Data.Item2 != a.Item2)
+                if (chr.CharStats.Location.Data.Item1 != a.Item1 ||
+                    chr.CharStats.Location.Data.Item2 != a.Item2)
                 {
                     Out("", true);
-                    OutCyan($"Moving from ({a.Item1}, {a.Item2}) to ({chr.Location.Data.Item1},{chr.Location.Data.Item2}).");
+                    OutCyan($"Moving from ({a.Item1}, {a.Item2}) to ({chr.CharStats.Location.Data.Item1},{chr.CharStats.Location.Data.Item2}).");
                 }
             };
 

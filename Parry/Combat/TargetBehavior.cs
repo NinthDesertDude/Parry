@@ -134,15 +134,15 @@ namespace Parry.Combat
         #region Variables - Factors and Bonuses
         /// <summary>
         /// Functions that run when performing targeting, adding the resulting
-        /// number to the combatant's score. This is a way to extend factors
+        /// number to the character's score. This is a way to extend factors
         /// and bonuses. Custom logic that involves distances should use
         /// CustomDistanceFactors instead.
         /// First argument: The combat history.
         /// Second argument: The possible target.
-        /// Third argument: The combatant in consideration.
-        /// Returns: The score to add to the combatant.
+        /// Third argument: The character in consideration.
+        /// Returns: The score to add to the character.
         /// </summary>
-        public List<Func<List<List<Combatant>>, Combatant, Combatant, float>> CustomFactors;
+        public List<Func<List<List<Character>>, Character, Character, float>> CustomFactors;
 
         /// <summary>
         /// Similar to custom factors, but these execute when recomputing
@@ -150,10 +150,10 @@ namespace Parry.Combat
         /// is updated after movement for all distance-based calculations.
         /// First argument: The combat history.
         /// Second argument: The possible target.
-        /// Third argument: The combatant in consideration.
-        /// Returns: The score to add to the combatant.
+        /// Third argument: The character in consideration.
+        /// Returns: The score to add to the character.
         /// </summary>
-        public List<Func<List<List<Combatant>>, Combatant, Combatant, float>> CustomDistanceFactors;
+        public List<Func<List<List<Character>>, Character, Character, float>> CustomDistanceFactors;
 
         /// <summary>
         /// Generates a random value from 0 to 1 for each possible target.
@@ -267,7 +267,7 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Number of combatants that targeted the target in consideration.
+        /// Number of characters that targeted the target in consideration.
         /// </summary>
         public float GroupAttackFactor
         {
@@ -429,7 +429,7 @@ namespace Parry.Combat
         /// if you want to skip targeting logic and provide your own targets
         /// manually.
         /// </summary>
-        public List<Combatant> Targets
+        public List<Character> Targets
         {
             get
             {
@@ -447,7 +447,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// When the combat system computes targets from this criteria, this
-        /// list is populated with both combatants and their scores.
+        /// list is populated with both characters and their scores.
         /// </summary>
         private List<WeightedTarget> WeightedTargets = new List<WeightedTarget>();
 
@@ -456,7 +456,7 @@ namespace Parry.Combat
         /// rather than recomputing the targets. This ignores any max number of
         /// targets limit.
         /// </summary>
-        public List<Combatant> OverrideTargets
+        public List<Character> OverrideTargets
         {
             get;
             set;
@@ -487,8 +487,8 @@ namespace Parry.Combat
         /// </summary>
         public TargetBehavior()
         {
-            CustomFactors = new List<Func<List<List<Combatant>>, Combatant, Combatant, float>>();
-            CustomDistanceFactors = new List<Func<List<List<Combatant>>, Combatant, Combatant, float>>();
+            CustomFactors = new List<Func<List<List<Character>>, Character, Character, float>>();
+            CustomDistanceFactors = new List<Func<List<List<Character>>, Character, Character, float>>();
             RandomFactor = 0;
             YourThreatFactor = 0;
             TeamThreatFactor = 0;
@@ -515,7 +515,7 @@ namespace Parry.Combat
             IsSelfless = false;
             MaxNumberTargets = 1;
             AreaTargetPoints = new List<Tuple<int, int, int>>();
-            Targets = new List<Combatant>();
+            Targets = new List<Character>();
             OverrideTargets = null;
             AllowSelfTargeting = false;
         }
@@ -564,45 +564,45 @@ namespace Parry.Combat
 
         #region Methods
         /// <summary>
-        /// Computes scores for each combatant based on factors and bonuses,
+        /// Computes scores for each character based on factors and bonuses,
         /// removing targets out of mobile range, then prioritizes by high
-        /// score. Returns combatants.
+        /// score. Returns character.
         /// </summary>
-        public List<Combatant> Perform(List<List<Combatant>> combatHistory, Combatant self)
+        public List<Character> Perform(List<List<Character>> combatHistory, Character self)
         {
             if (OverrideTargets != null)
             {
                 return OverrideTargets;
             }
 
-            List<Combatant> combatants = new List<Combatant>(combatHistory[0]);
+            List<Character> chars = new List<Character>(combatHistory[0]);
 
             // Area-based targeting.
             if (AreaTargetPoints.Count > 0)
             {
-                combatants = new List<Combatant>();
+                chars = new List<Character>();
 
                 for (int i = 0; i < AreaTargetPoints.Count; i++)
                 {
-                    combatants.AddRange(
+                    chars.AddRange(
                         combatHistory[0].Where(o =>
                         {
                             double distance = Math.Sqrt(
-                            Math.Pow(o.WrappedChar.Location.Data.Item1
+                            Math.Pow(o.CharStats.Location.Data.Item1
                                 - AreaTargetPoints[i].Item1, 2) +
-                            Math.Pow(o.WrappedChar.Location.Data.Item2
+                            Math.Pow(o.CharStats.Location.Data.Item2
                                 - AreaTargetPoints[i].Item2, 2));
 
                             return distance <= AreaTargetPoints[i].Item3;
                         }));
                 }
 
-                combatants = combatants.Distinct().ToList();
+                chars = chars.Distinct().ToList();
             }
 
             var weights = new List<WeightedTarget>();
-            List<Combatant> allies = combatants.Where(o => o != self && o.WrappedChar.TeamID == self.WrappedChar.TeamID).ToList();
-            List<Combatant> enemies = combatants.Where(o => o.WrappedChar.TeamID != self.WrappedChar.TeamID).ToList();
+            List<Character> allies = chars.Where(o => o != self && o.TeamID == self.TeamID).ToList();
+            List<Character> enemies = chars.Where(o => o.TeamID != self.TeamID).ToList();
 
             if (AllowSelfTargeting)
             {
@@ -611,7 +611,7 @@ namespace Parry.Combat
 
             if (IsNeutral)
             {
-                enemies = combatants;
+                enemies = new List<Character>(chars);
                 allies.Clear();
 
                 if (!AllowSelfTargeting)
@@ -622,17 +622,17 @@ namespace Parry.Combat
 
             if (!IsLoyal && combatHistory.Count > 1)
             {
-                Combatant selfLastRound = combatHistory[1]
-                    .FirstOrDefault(o => o.WrappedChar.Id == self.WrappedChar.Id);
+                Character selfLastRound = combatHistory[1]
+                    .FirstOrDefault(o => o.Id == self.Id);
 
                 for (int i = 0; i < allies.Count; i++)
                 {
-                    Combatant allyLastRound = combatHistory[1]
-                        .FirstOrDefault(o => o.WrappedChar.Id == allies[i].WrappedChar.Id);
+                    Character allyLastRound = combatHistory[1]
+                        .FirstOrDefault(o => o.Id == allies[i].Id);
 
-                    if ((allyLastRound.WrappedChar.MoveSelectBehavior.Motive == Constants.Motives.DamageHealth ||
-                        allyLastRound.WrappedChar.MoveSelectBehavior.Motive == Constants.Motives.LowerStats) &&
-                        allyLastRound.WrappedChar.GetTargets().Contains(selfLastRound))
+                    if ((allyLastRound.MoveSelectBehavior.Motive == Constants.Motives.DamageHealth ||
+                        allyLastRound.MoveSelectBehavior.Motive == Constants.Motives.LowerStats) &&
+                        allyLastRound.GetTargets().Contains(selfLastRound))
                     {
                         allies.RemoveAt(i);
                         enemies.Add(allies[i]);
@@ -642,14 +642,14 @@ namespace Parry.Combat
 
             if (SwapAlliesEnemies)
             {
-                List<Combatant> temp = allies;
+                List<Character> temp = allies;
                 allies = enemies;
                 enemies = temp;
             }
 
-            // Computes stats for the combatant.
+            // Computes stats for the character.
             var resistance = (YourResistFactor != 0 || ResistOpportunityFactor != 0)
-                ? self.WrappedChar.Stats.DamageResistance.Data.Sum()
+                ? self.CombatStats.DamageResistance.Data.Sum()
                 : 0;
 
             int minDamage = 0;
@@ -658,8 +658,8 @@ namespace Parry.Combat
 
             if (YourThreatFactor != 0 || YourHealthDamageFactor != 0 || ThreatOpportunityFactor != 0 || EasyDefeatBonus != 0)
             {
-                minDamage = self.WrappedChar.Stats.MinDamage.Data.Sum();
-                maxDamage = self.WrappedChar.Stats.MaxDamage.Data.Sum();
+                minDamage = self.CombatStats.MinDamage.Data.Sum();
+                maxDamage = self.CombatStats.MaxDamage.Data.Sum();
                 avgDamage = minDamage + (maxDamage - minDamage) / 2;
             }
 
@@ -677,13 +677,13 @@ namespace Parry.Combat
 
                 if (YourThreatFactor != 0 || TeamThreatFactor != 0 || ThreatOpportunityFactor != 0)
                 {
-                    theirResistance = enemies[i].WrappedChar.Stats.DamageResistance.Data.Sum();
+                    theirResistance = enemies[i].CombatStats.DamageResistance.Data.Sum();
                 }
 
                 if (YourResistFactor != 0 || TeamResistFactor != 0 || ResistOpportunityFactor != 0)
                 {
-                    theirMinDamage = enemies[i].WrappedChar.Stats.MinDamage.Data.Sum();
-                    theirMaxDamage = enemies[i].WrappedChar.Stats.MaxDamage.Data.Sum();
+                    theirMinDamage = enemies[i].CombatStats.MinDamage.Data.Sum();
+                    theirMaxDamage = enemies[i].CombatStats.MaxDamage.Data.Sum();
                     theirAvgDamage = theirMinDamage + (theirMaxDamage - theirMinDamage) / 2;
                 }
                 
@@ -691,11 +691,10 @@ namespace Parry.Combat
                 {
                     for (int j = 0; j < allies.Count; j++)
                     {
-                        for (int k = 0; k < Stats.NUM_TYPES_DAMAGE; k++)
+                        for (int k = 0; k < CombatStats.NUM_TYPES_DAMAGE; k++)
                         {
-                            teamAvgDamage += allies[j].WrappedChar.Stats.MinDamage.Data[k] +
-                                (allies[j].WrappedChar.Stats.MaxDamage.Data[k] -
-                                allies[j].WrappedChar.Stats.MinDamage.Data[k]) / 2;
+                            teamAvgDamage += allies[j].CombatStats.MinDamage.Data[k] +
+                                (allies[j].CombatStats.MaxDamage.Data[k] - allies[j].CombatStats.MinDamage.Data[k]) / 2;
                         }
                     }
                     teamAvgDamage = (allies.Count > 0) ? teamAvgDamage / allies.Count : 0;
@@ -704,20 +703,20 @@ namespace Parry.Combat
                 if (DistanceFactor != 0
                     || NoRiskBonus != 0
                     || InEasyRangeBonus != 0
-                    || self.WrappedChar.Stats.MinRangeRequired.Data != 0
-                    || self.WrappedChar.Stats.MaxRangeAllowed.Data >= 0)
+                    || self.CombatStats.MinRangeRequired.Data != 0
+                    || self.CombatStats.MaxRangeAllowed.Data >= 0)
                 {
                     distance = Math.Sqrt(
-                    Math.Pow(enemies[i].WrappedChar.Location.Data.Item1
-                        - self.WrappedChar.Location.Data.Item1, 2) +
-                    Math.Pow(enemies[i].WrappedChar.Location.Data.Item2
-                        - self.WrappedChar.Location.Data.Item2, 2));
+                    Math.Pow(enemies[i].CharStats.Location.Data.Item1
+                        - self.CharStats.Location.Data.Item1, 2) +
+                    Math.Pow(enemies[i].CharStats.Location.Data.Item2
+                        - self.CharStats.Location.Data.Item2, 2));
 
                     // Allows targets in radius + potential movement radius.
-                    if (distance + self.WrappedChar.Stats.MovementRate.Data
-                            < self.WrappedChar.Stats.MinRangeRequired.Data ||
-                        distance - self.WrappedChar.Stats.MovementRate.Data
-                            > self.WrappedChar.Stats.MaxRangeAllowed.Data)
+                    if (distance + self.CombatStats.MovementRate.Data
+                            < self.CombatStats.MinRangeRequired.Data ||
+                        distance - self.CombatStats.MovementRate.Data
+                            > self.CombatStats.MaxRangeAllowed.Data)
                     {
                         continue;
                     }
@@ -749,7 +748,7 @@ namespace Parry.Combat
 
                 if (TeamResistFactor != 0 && theirAvgDamage != 0)
                 {
-                    float teamResist = allies.Average(o => o.WrappedChar.Stats.DamageResistance.Data.Sum());
+                    float teamResist = allies.Average(o => o.CombatStats.DamageResistance.Data.Sum());
                     regScore += (teamResist == 0)
                         ? TeamResistFactor * (1 / theirAvgDamage)
                         : TeamResistFactor * (1 / (theirAvgDamage / teamResist));
@@ -757,17 +756,15 @@ namespace Parry.Combat
 
                 if (GroupAttackFactor != 0)
                 {
-                    int numTargeting = allies.Count(o =>
-                        o.WrappedChar.GetTargets().Contains(enemies[i]));
-
+                    int numTargeting = allies.Count(o => o.GetTargets().Contains(enemies[i]));
                     regScore += GroupAttackFactor * numTargeting;
                 }
 
                 if (YourHealthDamageFactor != 0)
                 {
-                    float factor = (enemies[i].CurrentHealth.Data <= 0)
+                    float factor = (enemies[i].CharStats.Health.Data <= 0)
                         ? avgDamage
-                        : avgDamage / enemies[i].CurrentHealth.Data;
+                        : avgDamage / enemies[i].CharStats.Health.Data;
 
                     regScore += (factor > 1)
                         ? YourHealthDamageFactor
@@ -776,9 +773,9 @@ namespace Parry.Combat
 
                 if (TeamHealthDamageFactor != 0)
                 {
-                    float factor = (enemies[i].CurrentHealth.Data <= 0)
+                    float factor = (enemies[i].CharStats.Health.Data <= 0)
                         ? teamAvgDamage
-                        : teamAvgDamage / enemies[i].CurrentHealth.Data;
+                        : teamAvgDamage / enemies[i].CharStats.Health.Data;
 
                     regScore += (factor > 1)
                         ? TeamHealthDamageFactor
@@ -790,8 +787,8 @@ namespace Parry.Combat
                     double avgEnemyDistance = enemies.Average(o =>
                     {
                         return Math.Sqrt(
-                            Math.Pow(o.WrappedChar.Location.Data.Item1 - self.WrappedChar.Location.Data.Item1, 2) +
-                            Math.Pow(o.WrappedChar.Location.Data.Item2 - self.WrappedChar.Location.Data.Item2, 2));
+                            Math.Pow(o.CharStats.Location.Data.Item1 - self.CharStats.Location.Data.Item1, 2) +
+                            Math.Pow(o.CharStats.Location.Data.Item2 - self.CharStats.Location.Data.Item2, 2));
                     });
 
                     distScore += (distance < 1)
@@ -801,8 +798,8 @@ namespace Parry.Combat
 
                 if (MovementFactor != 0)
                 {
-                    float avgMovement = enemies.Average(o => o.WrappedChar.Stats.MovementRate.Data);
-                    float movement = enemies[i].WrappedChar.Stats.MovementRate.Data;
+                    float avgMovement = enemies.Average(o => o.CombatStats.MovementRate.Data);
+                    float movement = enemies[i].CombatStats.MovementRate.Data;
 
                     regScore += (avgMovement == 0)
                         ? MovementFactor * movement
@@ -828,7 +825,7 @@ namespace Parry.Combat
                         ? YourResistFactor * (1 / theirAvgDamage)
                         : YourResistFactor * (1 / (theirAvgDamage / resistance));
 
-                    float teamResist = allies.Average(o => o.WrappedChar.Stats.DamageResistance.Data.Sum());
+                    float teamResist = allies.Average(o => o.CombatStats.DamageResistance.Data.Sum());
                     float teamResistFactor = (teamResist == 0)
                         ? 1 / theirAvgDamage
                         : 1 / (theirAvgDamage / teamResist);
@@ -842,12 +839,11 @@ namespace Parry.Combat
                 if (NoRiskBonus != 0)
                 {
                     float dist = (float)distance;
-                    float movement = (self.WrappedChar.CombatMovementEnabled.Data &&
-                        self.WrappedChar.CombatMovementBeforeEnabled.Data)
-                        ? self.WrappedChar.Stats.MovementRate.Data
+                    float movement = (self.CombatMovementBeforeEnabled.Data)
+                        ? self.CombatStats.MovementRate.Data
                         : 0;
 
-                    float range = self.WrappedChar.Stats.MaxRangeAllowed.Data;
+                    float range = self.CombatStats.MaxRangeAllowed.Data;
                     float goal = range - dist;
                     float intendedMove = Math.Min(Math.Abs(goal), movement);
                     dist += intendedMove * Math.Sign(goal);
@@ -855,29 +851,28 @@ namespace Parry.Combat
                     if (dist <= range)
                     {
                         dist += movement;
-                        if (enemies[i].WrappedChar.CombatMovementEnabled.Data &&
-                              enemies[i].WrappedChar.CombatMovementBeforeEnabled.Data &&
-                              enemies[i].WrappedChar.Stats.MovementRate.Data +
-                              enemies[i].WrappedChar.Stats.MaxRangeAllowed.Data < dist)
+                        if (enemies[i].CombatMovementBeforeEnabled.Data &&
+                              enemies[i].CombatStats.MovementRate.Data +
+                              enemies[i].CombatStats.MaxRangeAllowed.Data < dist)
                         {
                             distScore += NoRiskBonus;
                         }
                     }
                 }
 
-                if (InEasyRangeBonus != 0 && distance <= self.WrappedChar.Stats.MaxRangeAllowed.Data)
+                if (InEasyRangeBonus != 0 && distance <= self.CombatStats.MaxRangeAllowed.Data)
                 {
                     regScore += InEasyRangeBonus;
                 }
 
                 if ((IsVindictive || RetaliationBonus != 0) && combatHistory.Count > 1)
                 {
-                    Combatant selfLastRound = combatHistory[1]
-                        .FirstOrDefault(o => o.WrappedChar.Id == self.WrappedChar.Id);
-                    Combatant charLastRound = combatHistory[1]
-                        .FirstOrDefault(o => o.WrappedChar.Id == enemies[i].WrappedChar.Id);
+                    Character selfLastRound = combatHistory[1]
+                        .FirstOrDefault(o => o.Id == self.Id);
+                    Character charLastRound = combatHistory[1]
+                        .FirstOrDefault(o => o.Id == enemies[i].Id);
 
-                    if (charLastRound.WrappedChar.GetTargets().Contains(selfLastRound))
+                    if (charLastRound.GetTargets().Contains(selfLastRound))
                     {
                         if (RetaliationBonus != 0)
                         {
@@ -892,11 +887,11 @@ namespace Parry.Combat
 
                 if ((IsSelfless || TeamworkBonus != 0) && combatHistory.Count > 1)
                 {
-                    List<Combatant> alliesLastRound = combatHistory[1]
-                        .Where(o => o.WrappedChar.TeamID == self.WrappedChar.TeamID)
+                    List<Character> alliesLastRound = combatHistory[1]
+                        .Where(o => o.TeamID == self.TeamID)
                         .ToList();
 
-                    bool didTarget = enemies[i].WrappedChar.GetTargets().Any(o =>
+                    bool didTarget = enemies[i].GetTargets().Any(o =>
                         alliesLastRound.Contains(o));
 
                     if (didTarget)
@@ -914,7 +909,7 @@ namespace Parry.Combat
 
                 if (EasyDefeatBonus != 0)
                 {
-                    if (avgDamage >= enemies[i].CurrentHealth.Data)
+                    if (avgDamage >= enemies[i].CharStats.Health.Data)
                     {
                         regScore += EasyDefeatBonus;
                     }
@@ -951,9 +946,9 @@ namespace Parry.Combat
         /// Removes targets out-of-range, then adjusts scores based on new
         /// distances after moving, prioritizes high-scoring targets and trims
         /// to the number of targets allowed. Intended to be called after
-        /// first movement. Returns combatants.
+        /// first movement. Returns characters.
         /// </summary>
-        public List<Combatant> PostMovePerform(List<List<Combatant>> combatHistory, Combatant self)
+        public List<Character> PostMovePerform(List<List<Character>> combatHistory, Character self)
         {
             if (OverrideTargets != null)
             {
@@ -962,33 +957,31 @@ namespace Parry.Combat
 
             if (DistanceFactor == 0
                     && NoRiskBonus == 0
-                    && self.WrappedChar.Stats.MinRangeRequired.Data == 0
-                    && self.WrappedChar.Stats.MaxRangeAllowed.Data == -1)
+                    && self.CombatStats.MinRangeRequired.Data == 0
+                    && self.CombatStats.MaxRangeAllowed.Data == -1)
             {
                 WeightedTargets = WeightedTargets
-                .Take(MaxNumberTargets)
-                .ToList();
+                    .Take(MaxNumberTargets)
+                    .ToList();
 
                 return Targets;
             }
 
             for (int i = WeightedTargets.Count - 1; i >= 0; i--)
             {
-                Combatant combatant = WeightedTargets[i].Char;
+                Character character = WeightedTargets[i].Char;
                 float score = 0;
 
-                CustomDistanceFactors?.ForEach(o => score += o(combatHistory, combatant, self));
+                CustomDistanceFactors?.ForEach(func => score += func(combatHistory, WeightedTargets[i].Char, self));
 
                 double distance = Math.Sqrt(
-                Math.Pow(combatant.WrappedChar.Location.Data.Item1
-                    - self.WrappedChar.Location.Data.Item1, 2) +
-                Math.Pow(combatant.WrappedChar.Location.Data.Item2
-                    - self.WrappedChar.Location.Data.Item2, 2));
+                    Math.Pow(character.CharStats.Location.Data.Item1 - self.CharStats.Location.Data.Item1, 2) +
+                    Math.Pow(character.CharStats.Location.Data.Item2 - self.CharStats.Location.Data.Item2, 2));
 
                 // Can't target if out of range.
-                if (distance < self.WrappedChar.Stats.MinRangeRequired.Data ||
-                    (self.WrappedChar.Stats.MaxRangeAllowed.Data > 0 &&
-                    distance > self.WrappedChar.Stats.MaxRangeAllowed.Data))
+                if (distance < self.CombatStats.MinRangeRequired.Data ||
+                    (self.CombatStats.MaxRangeAllowed.Data > 0 &&
+                    distance > self.CombatStats.MaxRangeAllowed.Data))
                 {
                     WeightedTargets.RemoveAt(i);
                     continue;
@@ -999,8 +992,8 @@ namespace Parry.Combat
                     double avgEnemyDistance = WeightedTargets.Average(o =>
                     {
                         return Math.Sqrt(
-                            Math.Pow(o.Char.WrappedChar.Location.Data.Item1 - self.WrappedChar.Location.Data.Item1, 2) +
-                            Math.Pow(o.Char.WrappedChar.Location.Data.Item2 - self.WrappedChar.Location.Data.Item2, 2));
+                            Math.Pow(o.Char.CharStats.Location.Data.Item1 - self.CharStats.Location.Data.Item1, 2) +
+                            Math.Pow(o.Char.CharStats.Location.Data.Item2 - self.CharStats.Location.Data.Item2, 2));
                     });
 
                     score += (distance < 1)
@@ -1012,12 +1005,11 @@ namespace Parry.Combat
                 if (NoRiskBonus != 0)
                 {
                     float dist = (float)distance;
-                    float movement = (self.WrappedChar.CombatMovementEnabled.Data &&
-                        self.WrappedChar.CombatMovementBeforeEnabled.Data)
-                        ? self.WrappedChar.Stats.MovementRate.Data
+                    float movement = (self.CombatMovementBeforeEnabled.Data)
+                        ? self.CombatStats.MovementRate.Data
                         : 0;
 
-                    float range = self.WrappedChar.Stats.MaxRangeAllowed.Data;
+                    float range = self.CombatStats.MaxRangeAllowed.Data;
                     float goal = range - dist;
                     float intendedMove = Math.Min(Math.Abs(goal), movement);
                     dist += intendedMove * Math.Sign(goal);
@@ -1025,10 +1017,9 @@ namespace Parry.Combat
                     if (dist <= range)
                     {
                         dist += movement;
-                        if (combatant.WrappedChar.CombatMovementEnabled.Data &&
-                              combatant.WrappedChar.CombatMovementBeforeEnabled.Data &&
-                              combatant.WrappedChar.Stats.MovementRate.Data +
-                              combatant.WrappedChar.Stats.MaxRangeAllowed.Data < dist)
+                        if (character.CombatMovementBeforeEnabled.Data &&
+                              character.CombatStats.MovementRate.Data +
+                              character.CombatStats.MaxRangeAllowed.Data < dist)
                         {
                             score += NoRiskBonus;
                         }
@@ -1055,7 +1046,7 @@ namespace Parry.Combat
             /// <summary>
             /// The character associated with these scores.
             /// </summary>
-            public Combatant Char;
+            public Character Char;
 
             /// <summary>
             /// Score based on non-distance factors. Combine with distance
@@ -1069,9 +1060,9 @@ namespace Parry.Combat
             /// </summary>
             public float DistanceScore;
 
-            public WeightedTarget(Combatant combatant, float nonDistScore, float distScore)
+            public WeightedTarget(Character character, float nonDistScore, float distScore)
             {
-                Char = combatant;
+                Char = character;
                 NonDistanceScore = nonDistScore;
                 DistanceScore = distScore;
             }

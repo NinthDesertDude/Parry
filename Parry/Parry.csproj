@@ -40,12 +40,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Combat\Combatant.cs" />
     <Compile Include="Combat\Geometry.cs" />
     <Compile Include="Combat\Move.cs" />
     <Compile Include="Combat\Movement.cs" />
     <Compile Include="Combat\MovementBehavior.cs" />
     <Compile Include="Combat\MoveSelector.cs" />
+    <Compile Include="Combat\CharacterStats.cs" />
     <Compile Include="Combat\Stats.cs" />
     <Compile Include="Combat\TargetBehavior.cs" />
     <Compile Include="Combat\Constants.cs" />

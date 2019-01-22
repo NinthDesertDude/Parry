@@ -12,7 +12,7 @@ namespace Parry.Combat
     {
         #region Variables
         /// <summary>
-        /// The first function that returns true given the combatants will
+        /// The first function that returns true given the characters will
         /// apply the associated motion origin and motion when performing
         /// movement behavior.
         /// </summary>
@@ -20,10 +20,10 @@ namespace Parry.Combat
 
         /// <summary>
         /// When targets are set, this list is used instead of defaulting to
-        /// non-allied combatants. This is independent of targeting behavior,
+        /// non-allied characters. This is independent of targeting behavior,
         /// so it doesn't consider max number of targets.
         /// </summary>
-        public List<Combatant> Targets;
+        public List<Character> Targets;
 
         /// <summary>
         /// When target locations are set, this list will be used in addition
@@ -57,7 +57,7 @@ namespace Parry.Combat
         public MovementBehavior(MotionOrigin origin, Motion motion)
         {
             Movements = new List<Movement>() { new Movement(origin, motion) };
-            Targets = new List<Combatant>();
+            Targets = new List<Character>();
             TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
             UseTargetingTargets = false;
@@ -69,7 +69,7 @@ namespace Parry.Combat
         public MovementBehavior(List<Movement> movements)
         {
             Movements = new List<Movement>(movements);
-            Targets = new List<Combatant>();
+            Targets = new List<Character>();
             TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
             UseTargetingTargets = false;
@@ -78,7 +78,7 @@ namespace Parry.Combat
         /// <summary>
         /// Creates a new movement behavior using targets.
         /// </summary>
-        public MovementBehavior(List<Movement> movements, List<Combatant> targets)
+        public MovementBehavior(List<Movement> movements, List<Character> targets)
         {
             Movements = movements;
             Targets = targets;
@@ -112,31 +112,31 @@ namespace Parry.Combat
         public enum MotionOrigin
         {
             /// <summary>
-            /// The first non-allied combatant, or the first target if set.
+            /// The first non-allied character, or the first target if set.
             /// </summary>
             First,
 
             /// <summary>
-            /// The nearest non-allied combatant, or the nearest target if set.
+            /// The nearest non-allied character, or the nearest target if set.
             /// Useful to against enemies closing in.
             /// </summary>
             Nearest,
 
             /// <summary>
-            /// The furthest non-allied combatant, or the furthest target if
+            /// The furthest non-allied character, or the furthest target if
             /// set. Useful against enemies that keep a distance.
             /// </summary>
             Furthest,
 
             /// <summary>
-            /// The non-allied combatant closest to the center of attack range,
+            /// The non-allied character closest to the center of attack range,
             /// or the target if set. Useful to maximize number of enemies in
             /// range.
             /// </summary>
             NearestToCenter,
 
             /// <summary>
-            /// The averaged position of all non-allied combatants, or of
+            /// The averaged position of all non-allied characters, or of
             /// targets if set.
             /// </summary>
             Average
@@ -198,21 +198,21 @@ namespace Parry.Combat
         /// <summary>
         /// Performs the movement.
         /// </summary>
-        public Tuple<float, float> Perform(List<Combatant> combatants, Combatant self, Move chosenMove)
+        public Tuple<float, float> Perform(List<Character> chars, Character self, Move chosenMove)
         {
             List<Tuple<float, float>> targets = (UseTargetingTargets)
-                ? self.WrappedChar.GetTargets().Select(o => o.WrappedChar.Location.Data).ToList()
+                ? self.GetTargets().Select(o => o.CharStats.Location.Data).ToList()
                 : (Targets.Count > 0)
-                ? Targets.Select(o => o.WrappedChar.Location.Data).ToList()
-                : combatants.Where(o => o.WrappedChar.TeamID != self.WrappedChar.TeamID)
-                .Select(o => o.WrappedChar.Location.Data)
+                ? Targets.Select(o => o.CharStats.Location.Data).ToList()
+                : chars.Where(o => o.TeamID != self.TeamID)
+                .Select(o => o.CharStats.Location.Data)
                 .ToList();
 
             targets.AddRange(TargetLocations);
 
             if (targets.Count == 0)
             {
-                return self.WrappedChar.Location.Data;
+                return self.CharStats.Location.Data;
             }
 
             MotionOrigin appliedMotionOrigin = MotionOrigin.First;
@@ -222,7 +222,7 @@ namespace Parry.Combat
             for (int i = 0; i < Movements.Count; i++)
             {
                 var movement = Movements[i];
-                if (movement.ShouldApply(combatants))
+                if (movement.ShouldApply(chars))
                 {
                     appliedMotionOrigin = movement.Origin;
                     appliedMotion = movement.Motion;
@@ -251,8 +251,8 @@ namespace Parry.Combat
                     break;
                 case MotionOrigin.Furthest:
                     float dist = float.MinValue;
-                    float x1 = self.WrappedChar.Location.Data.Item1;
-                    float y1 = self.WrappedChar.Location.Data.Item2;
+                    float x1 = self.CharStats.Location.Data.Item1;
+                    float y1 = self.CharStats.Location.Data.Item2;
                     float x2, y2;
                     for (int j = 0; j < targets.Count; j++)
                     {
@@ -268,8 +268,8 @@ namespace Parry.Combat
                     break;
                 case MotionOrigin.Nearest:
                     dist = float.MaxValue;
-                    x1 = self.WrappedChar.Location.Data.Item1;
-                    y1 = self.WrappedChar.Location.Data.Item2;
+                    x1 = self.CharStats.Location.Data.Item1;
+                    y1 = self.CharStats.Location.Data.Item2;
                     for (int j = 0; j < targets.Count; j++)
                     {
                         x2 = targets[j].Item1;
@@ -283,11 +283,11 @@ namespace Parry.Combat
                     }
                     break;
                 case MotionOrigin.NearestToCenter:
-                    float center = self.WrappedChar.Stats.MinRangeRequired.Data +
-                        (self.WrappedChar.Stats.MaxRangeAllowed.Data - self.WrappedChar.Stats.MinRangeRequired.Data) / 2;
+                    float center = self.CombatStats.MinRangeRequired.Data +
+                        (self.CombatStats.MaxRangeAllowed.Data - self.CombatStats.MinRangeRequired.Data) / 2;
                     dist = float.MaxValue;
-                    x1 = self.WrappedChar.Location.Data.Item1;
-                    y1 = self.WrappedChar.Location.Data.Item2;
+                    x1 = self.CharStats.Location.Data.Item1;
+                    y1 = self.CharStats.Location.Data.Item2;
                     for (int j = 0; j < targets.Count; j++)
                     {
                         x2 = targets[j].Item1;
@@ -304,12 +304,12 @@ namespace Parry.Combat
 
             // Moves with the desired motion.
             double distance = Math.Sqrt(
-                Math.Pow(self.WrappedChar.Location.Data.Item1 - origin.Item1, 2) +
-                Math.Pow(self.WrappedChar.Location.Data.Item2 - origin.Item2, 2));
+                Math.Pow(self.CharStats.Location.Data.Item1 - origin.Item1, 2) +
+                Math.Pow(self.CharStats.Location.Data.Item2 - origin.Item2, 2));
 
             double dirToOrigin = Math.Atan2(
-                origin.Item2 - self.WrappedChar.Location.Data.Item2,
-                origin.Item1 - self.WrappedChar.Location.Data.Item1);
+                origin.Item2 - self.CharStats.Location.Data.Item2,
+                origin.Item1 - self.CharStats.Location.Data.Item1);
 
             double dirToSelf = dirToOrigin + Math.PI;
             double intendedDir = dirToOrigin;
@@ -319,31 +319,31 @@ namespace Parry.Combat
             {
                 case Motion.Away:
                     intendedDir = dirToSelf;
-                    realDist = self.WrappedChar.Stats.MovementRate.Data;
+                    realDist = self.CombatStats.MovementRate.Data;
                     break;
                 case Motion.AwayUpToDistance:
                     intendedDir = dirToSelf;
-                    realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, DistanceRange.Item1);
+                    realDist = Math.Min(self.CombatStats.MovementRate.Data, DistanceRange.Item1);
                     break;
                 case Motion.Towards:
-                    realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, distance);
+                    realDist = Math.Min(self.CombatStats.MovementRate.Data, distance);
                     break;
                 case Motion.TowardsUpToDistance:
-                    realDist = Math.Min(Math.Min(self.WrappedChar.Stats.MovementRate.Data, distance), DistanceRange.Item1);
+                    realDist = Math.Min(Math.Min(self.CombatStats.MovementRate.Data, distance), DistanceRange.Item1);
                     break;
                 case Motion.WithinDistanceRange:
                     if (distance < DistanceRange.Item1)
                     {
                         intendedDir = dirToSelf;
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, DistanceRange.Item1);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, DistanceRange.Item1);
                     }
                     else if (distance > DistanceRange.Item2)
                     {
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, DistanceRange.Item1);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, DistanceRange.Item1);
                     }
                     else
                     {
-                        return self.WrappedChar.Location.Data;
+                        return self.CharStats.Location.Data;
                     }
                     break;
                 case Motion.WithinDistanceRangeCenter:
@@ -352,56 +352,56 @@ namespace Parry.Combat
                     if (distance < DistanceRange.Item1)
                     {
                         intendedDir = dirToSelf;
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, midpoint);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, midpoint);
                     }
                     else if (distance > DistanceRange.Item2)
                     {
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, midpoint);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, midpoint);
                     }
                     else
                     {
-                        return self.WrappedChar.Location.Data;
+                        return self.CharStats.Location.Data;
                     }
                     break;
                 case Motion.WithinDistanceRangeFar:
                     if (distance < DistanceRange.Item1)
                     {
                         intendedDir = dirToSelf;
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, DistanceRange.Item2);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, DistanceRange.Item2);
                     }
                     else if (distance > DistanceRange.Item2)
                     {
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, DistanceRange.Item2);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, DistanceRange.Item2);
                     }
                     else
                     {
-                        return self.WrappedChar.Location.Data;
+                        return self.CharStats.Location.Data;
                     }
                     break;
                 case Motion.WithinDistanceRangeNear:
                     double distanceToMinRange = Math.Sqrt(
-                        Math.Pow(self.WrappedChar.Location.Data.Item1 - DistanceRange.Item1, 2) +
-                        Math.Pow(self.WrappedChar.Location.Data.Item2 - DistanceRange.Item2, 2));
+                        Math.Pow(self.CharStats.Location.Data.Item1 - DistanceRange.Item1, 2) +
+                        Math.Pow(self.CharStats.Location.Data.Item2 - DistanceRange.Item2, 2));
 
                     if (distance < DistanceRange.Item1)
                     {
                         intendedDir = dirToSelf;
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, distanceToMinRange);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, distanceToMinRange);
                     }
                     else if (distance > DistanceRange.Item2)
                     {
-                        realDist = Math.Min(self.WrappedChar.Stats.MovementRate.Data, distanceToMinRange);
+                        realDist = Math.Min(self.CombatStats.MovementRate.Data, distanceToMinRange);
                     }
                     else
                     {
-                        return self.WrappedChar.Location.Data;
+                        return self.CharStats.Location.Data;
                     }
                     break;
             }
 
             return new Tuple<float, float>(
-                (float)Math.Round(self.WrappedChar.Location.Data.Item1 + realDist * Math.Cos(intendedDir), 10),
-                (float)Math.Round(self.WrappedChar.Location.Data.Item2 + realDist * Math.Sin(intendedDir), 10));
+                (float)Math.Round(self.CharStats.Location.Data.Item1 + realDist * Math.Cos(intendedDir), 10),
+                (float)Math.Round(self.CharStats.Location.Data.Item2 + realDist * Math.Sin(intendedDir), 10));
         }
         #endregion
     }

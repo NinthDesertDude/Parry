@@ -63,7 +63,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// If non-null, this targeting behavior is used instead of the
-        /// combatant's default behavior.
+        /// character's default behavior.
         /// Default value is null.
         /// </summary>
         public TargetBehavior TargetBehavior
@@ -74,7 +74,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// If non-null, this movement behavior is used instead of the
-        /// combatant's default pre-move behavior.
+        /// character's default pre-move behavior.
         /// Default value is null.
         /// </summary>
         public MovementBehavior MovementBeforeBehavior
@@ -85,7 +85,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// If non-null, this movement behavior is used instead of the
-        /// combatant's default post-move behavior.
+        /// character's default post-move behavior.
         /// Default value is null.
         /// </summary>
         public MovementBehavior MovementAfterBehavior
@@ -96,10 +96,10 @@ namespace Parry.Combat
 
         /// <summary>
         /// The action to perform when the move is executed.
-        /// Takes a list of all combatants, followed by a list of the
-        /// targeted combatants.
+        /// Takes a list of all characters, followed by a list of the
+        /// targeted characters.
         /// </summary>
-        public Action<Combatant, List<Combatant>, List<Combatant>> PerformAction
+        public Action<Character, List<Character>, List<Character>> PerformAction
         {
             get;
             set;
@@ -170,20 +170,20 @@ namespace Parry.Combat
         /// critical hits, range damage modifiers, reductions, knockback and
         /// recoil into consideration.
         /// </summary>
-        public static readonly Action<Combatant, List<Combatant>, List<Combatant>> DefaultAction;
+        public static readonly Action<Character, List<Character>, List<Character>> DefaultAction;
         #endregion
 
         #region Constructors
         static Move()
         {
             rng = new Random();
-            DefaultAction = new Action<Combatant, List<Combatant>, List<Combatant>>((attacker, combatants, targets) =>
+            DefaultAction = new Action<Character, List<Character>, List<Character>>((attacker, chars, targets) =>
             {
-                List<Combatant> combatantsHit = ComputeTargetsHit(attacker, targets);
+                List<Character> charsHit = ComputeTargetsHit(attacker, targets);
 
-                for (int i = 0; i < combatantsHit.Count; i++)
+                for (int i = 0; i < charsHit.Count; i++)
                 {
-                    Combatant target = combatantsHit[i];
+                    Character target = charsHit[i];
                     List<float> targetDamage = ComputeTargetDamage(target, ComputeAttackerDamage(attacker));
 
                     ComputeRangeDamageModifier(attacker, target, targetDamage);
@@ -197,9 +197,9 @@ namespace Parry.Combat
 
         /// <summary>
         /// Constructs a move with defaults and the given action, which
-        /// takes a list of combatants followed by a list of targets.
+        /// takes a list of characters followed by a list of targets.
         /// </summary>
-        public Move(Action<Combatant, List<Combatant>, List<Combatant>> action)
+        public Move(Action<Character, List<Character>, List<Character>> action)
         {
             Cooldown = 0;
             CooldownProgress = 0;
@@ -270,13 +270,13 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Performs the move with the given list of combatants and targets.
+        /// Performs the move with the given list of characters and targets.
         /// Returns whether the move was performed or false if it couldn't be.
         /// </summary>
-        /// <param name="combatants">
-        /// A list of all combatants.
+        /// <param name="chars">
+        /// A list of all characters.
         /// </param>
-        public bool Perform(Combatant current, List<Combatant> combatants, List<Combatant> targets)
+        public bool Perform(Character current, List<Character> chars, List<Character> targets)
         {
             //Manages charge-up moves.
             if (TurnFraction > 1 && TurnFractionProgress == 0)
@@ -287,7 +287,7 @@ namespace Parry.Combat
             if (CanPerform())
             {
                 UsesPerTurnProgress -= 1;
-                PerformAction(current, combatants, targets);
+                PerformAction(current, chars, targets);
 
                 //Starts the cooldown period if nonzero.
                 if (Cooldown != 0 && CooldownProgress == 0)
@@ -308,40 +308,40 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static List<Combatant> ComputeTargetsHit(Combatant attacker, List<Combatant> targets)
+        public static List<Character> ComputeTargetsHit(Character attacker, List<Character> targets)
         {
-            List<Combatant> combatantsHit = new List<Combatant>();
+            List<Character> charsHit = new List<Character>();
 
-            if (attacker.WrappedChar.Stats.HitStatus.Data == Constants.HitStatuses.AlwaysHit)
+            if (attacker.CombatStats.HitStatus.Data == Constants.HitStatuses.AlwaysHit)
             {
-                combatantsHit.AddRange(targets);
+                charsHit.AddRange(targets);
             }
             else
             {
                 // Chance to hit.
-                if (attacker.WrappedChar.Stats.PercentToHit.Data < 1 ||
-                    rng.Next(100) + 1 > attacker.WrappedChar.Stats.PercentToHit.Data)
+                if (attacker.CombatStats.PercentToHit.Data < 1 ||
+                    rng.Next(100) + 1 > attacker.CombatStats.PercentToHit.Data)
                 {
-                    attacker.WrappedChar.RaiseAttackMissed(null);
-                    return combatantsHit;
+                    attacker.RaiseAttackMissed(null);
+                    return charsHit;
                 }
 
                 // Chance for targets to dodge.
                 for (int i = 0; i < targets.Count; i++)
                 {
-                    if (rng.Next(100) < targets[i].WrappedChar.Stats.PercentToDodge.Data)
+                    if (rng.Next(100) < targets[i].CombatStats.PercentToDodge.Data)
                     {
-                        attacker.WrappedChar.RaiseAttackMissed(targets[i]);
-                        targets[i].WrappedChar.RaiseAttackDodged(attacker);
+                        attacker.RaiseAttackMissed(targets[i]);
+                        targets[i].RaiseAttackDodged(attacker);
                     }
                     else
                     {
-                        combatantsHit.Add(targets[i]);
+                        charsHit.Add(targets[i]);
                     }
                 }
             }
 
-            return combatantsHit;
+            return charsHit;
         }
 
         /// <summary>
@@ -354,14 +354,14 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static Tuple<float[], float[]> ComputeAttackerDamage(Combatant attacker)
+        public static Tuple<float[], float[]> ComputeAttackerDamage(Character attacker)
         {
-            Stats charStats = attacker.WrappedChar.Stats;
-            float[] baseDamage = new float[Stats.NUM_TYPES_DAMAGE];
-            float[] critDamage = new float[Stats.NUM_TYPES_DAMAGE];
+            CombatStats charStats = attacker.CombatStats;
+            float[] baseDamage = new float[CombatStats.NUM_TYPES_DAMAGE];
+            float[] critDamage = new float[CombatStats.NUM_TYPES_DAMAGE];
 
             // Compute damage and critical hits.
-            for (int j = 0; j < Stats.NUM_TYPES_DAMAGE; j++)
+            for (int j = 0; j < CombatStats.NUM_TYPES_DAMAGE; j++)
             {
                 baseDamage[j] = charStats.MinDamage.Data[j] + rng.Next(
                     charStats.MaxDamage.Data[j] - charStats.MinDamage.Data[j] + 1);
@@ -369,7 +369,7 @@ namespace Parry.Combat
                 if (rng.Next(100) < charStats.PercentToCritHit.Data[j])
                 {
                     critDamage[j] = baseDamage[j] * charStats.CritDamageMultiplier.Data[j];
-                    attacker.WrappedChar.RaiseAttackCritHit(j, critDamage[j]);
+                    attacker.RaiseAttackCritHit(j, critDamage[j]);
                 }
                 else
                 {
@@ -387,9 +387,9 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static List<float> ComputeTargetDamage(Combatant target, Tuple<float[], float[]> damage)
+        public static List<float> ComputeTargetDamage(Character target, Tuple<float[], float[]> damage)
         {
-            if (target.WrappedChar.Stats.CriticalStatus.Data == Constants.CriticalStatuses.ImmuneToCriticalHits)
+            if (target.CombatStats.CriticalStatus.Data == Constants.CriticalStatuses.ImmuneToCriticalHits)
             {
                 return damage.Item1.ToList();
             }
@@ -403,15 +403,15 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static void ComputeRangeDamageModifier(Combatant attacker, Combatant target, List<float> damage)
+        public static void ComputeRangeDamageModifier(Character attacker, Character target, List<float> damage)
         {
-            Stats charStats = attacker.WrappedChar.Stats;
+            CombatStats charStats = attacker.CombatStats;
 
             // Multiplies damage by range.
-            float deltaX = attacker.WrappedChar.Location.Data.Item1
-                - target.WrappedChar.Location.Data.Item1;
-            float deltaY = attacker.WrappedChar.Location.Data.Item2
-                - target.WrappedChar.Location.Data.Item2;
+            float deltaX = attacker.CharStats.Location.Data.Item1
+                - target.CharStats.Location.Data.Item1;
+            float deltaY = attacker.CharStats.Location.Data.Item2
+                - target.CharStats.Location.Data.Item2;
             double dist = Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
 
             if (dist < charStats.MinRangeRequired.Data)
@@ -441,19 +441,19 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static void ComputeDamageReductions(Combatant target, List<float> damage)
+        public static void ComputeDamageReductions(Character target, List<float> damage)
         {
             for (int i = 0; i < damage.Count; i++)
             {
                 // Damage reduction.
-                damage[i] -= target.WrappedChar.Stats.DamageReduction.Data[i];
+                damage[i] -= target.CombatStats.DamageReduction.Data[i];
                 if (damage[i] < 0)
                 {
                     damage[i] = 0;
                 }
 
                 // Damage resistance.
-                float resistance = target.WrappedChar.Stats.DamageResistance.Data[i];
+                float resistance = target.CombatStats.DamageResistance.Data[i];
                 if (resistance < 0) { resistance = -resistance + 100; }
                 else { resistance = 100 - resistance; }
 
@@ -468,14 +468,14 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static void ApplyDamage(Combatant attacker, Combatant target, List<float> damage)
+        public static void ApplyDamage(Character attacker, Character target, List<float> damage)
         {
             float damageSum = damage.Sum();
 
-            attacker.WrappedChar.RaiseAttackBeforeDamage(target, damage);
-            target.WrappedChar.RaiseAttackBeforeReceiveDamage(attacker, damage);
-            target.CurrentHealth.Data -= (int)damageSum;
-            attacker.WrappedChar.RaiseAttackAfterDamage(target, damage);
+            attacker.RaiseAttackBeforeDamage(target, damage);
+            target.RaiseAttackBeforeReceiveDamage(attacker, damage);
+            target.CharStats.Health.Data -= (int)damageSum;
+            attacker.RaiseAttackAfterDamage(target, damage);
         }
 
         /// <summary>
@@ -484,12 +484,12 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static float ComputeKnockbackDamage(Combatant attacker, Combatant target, float totalDamage)
+        public static float ComputeKnockbackDamage(Character attacker, Character target, float totalDamage)
         {
             float knockback = totalDamage
-                * target.WrappedChar.Stats.PercentKnockback.Data
-                + target.WrappedChar.Stats.ConstantKnockback.Data
-                - attacker.WrappedChar.Stats.DamageReduction.Data[0];
+                * target.CombatStats.PercentKnockback.Data
+                + target.CombatStats.ConstantKnockback.Data
+                - attacker.CombatStats.DamageReduction.Data[0];
 
             if (knockback < 0)
             {
@@ -497,7 +497,7 @@ namespace Parry.Combat
             }
             else if (knockback > 0)
             {
-                float resistance = attacker.WrappedChar.Stats.DamageResistance.Data[0];
+                float resistance = attacker.CombatStats.DamageResistance.Data[0];
                 if (resistance < 0) { resistance = -resistance + 100; }
                 else { resistance = 100 - resistance; }
 
@@ -512,10 +512,10 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static void ApplyKnockbackDamage(Combatant attacker, Combatant target, float knockback)
+        public static void ApplyKnockbackDamage(Character attacker, Character target, float knockback)
         {
-            attacker.WrappedChar.RaiseAttackKnockback(attacker, target, knockback);
-            attacker.CurrentHealth.Data -= (int)knockback;
+            attacker.RaiseAttackKnockback(attacker, target, knockback);
+            attacker.CharStats.Health.Data -= (int)knockback;
         }
 
         /// <summary>
@@ -524,28 +524,28 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static Tuple<float, Tuple<float, float>> ComputeRecoil(Combatant attacker, Combatant target)
+        public static Tuple<float, Tuple<float, float>> ComputeRecoil(Character attacker, Character target)
         {
-            if (attacker.WrappedChar.Stats.MinRecoil.Data > 0)
+            if (attacker.CombatStats.MinRecoil.Data > 0)
             {
-                float recoil = attacker.WrappedChar.Stats.MinRecoil.Data + rng.Next((int)(
-                    attacker.WrappedChar.Stats.MaxRecoil.Data -
-                    attacker.WrappedChar.Stats.MinRecoil.Data));
+                float recoil = attacker.CombatStats.MinRecoil.Data + rng.Next((int)(
+                    attacker.CombatStats.MaxRecoil.Data -
+                    attacker.CombatStats.MinRecoil.Data));
 
                 double recoilDir = Math.Atan2(
-                    target.WrappedChar.Location.Data.Item2 -
-                    attacker.WrappedChar.Location.Data.Item2,
-                    target.WrappedChar.Location.Data.Item1 -
-                    attacker.WrappedChar.Location.Data.Item1);
+                    target.CharStats.Location.Data.Item2 -
+                    attacker.CharStats.Location.Data.Item2,
+                    target.CharStats.Location.Data.Item1 -
+                    attacker.CharStats.Location.Data.Item1);
 
                 var newLocation = new Tuple<float, float>(
-                    (float)Math.Round(target.WrappedChar.Location.Data.Item1 + recoil * Math.Cos(recoilDir), 10),
-                    (float)Math.Round(target.WrappedChar.Location.Data.Item2 + recoil * Math.Sin(recoilDir), 10));
+                    (float)Math.Round(target.CharStats.Location.Data.Item1 + recoil * Math.Cos(recoilDir), 10),
+                    (float)Math.Round(target.CharStats.Location.Data.Item2 + recoil * Math.Sin(recoilDir), 10));
 
                 return new Tuple<float, Tuple<float, float>>(recoil, newLocation);
             }
 
-            return new Tuple<float, Tuple<float, float>>(0, target.WrappedChar.Location.Data);
+            return new Tuple<float, Tuple<float, float>>(0, target.CharStats.Location.Data);
         }
 
         /// <summary>
@@ -555,11 +555,11 @@ namespace Parry.Combat
         /// Use these functions in custom move actions to avoid rewriting the
         /// logic to handle built-in stats.
         /// </summary>
-        public static void ApplyRecoil(Combatant attacker, Combatant target, Tuple<float, Tuple<float, float>> recoil)
+        public static void ApplyRecoil(Character attacker, Character target, Tuple<float, Tuple<float, float>> recoil)
         {
-            target.WrappedChar.RaiseAttackReceiveRecoil(attacker, recoil.Item1, recoil.Item2);
-            attacker.WrappedChar.RaiseAttackRecoil(target, recoil.Item1, recoil.Item2);
-            target.WrappedChar.Location.Data = recoil.Item2;
+            target.RaiseAttackReceiveRecoil(attacker, recoil.Item1, recoil.Item2);
+            attacker.RaiseAttackRecoil(target, recoil.Item1, recoil.Item2);
+            target.CharStats.Location.Data = recoil.Item2;
         }
         #endregion
     }

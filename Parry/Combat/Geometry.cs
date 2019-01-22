@@ -14,11 +14,11 @@ namespace Parry.Combat
         /// <summary>
         /// Keeps track of all characters in the geometry.
         /// </summary>
-        public List<Combatant> CharactersInZone
+        public List<Character> CharactersInZone
         {
             get
             {
-                return new List<Combatant>(CharactersInZone);
+                return new List<Character>(CharactersInZone);
             }
             private set
             {
@@ -87,14 +87,14 @@ namespace Parry.Combat
         /// First argument is the zone which was entered.
         /// Second argument is the character that entered the zone.
         /// </summary>
-        public event Action<Geometry, Combatant> ZoneEntered;
+        public event Action<Geometry, Character> ZoneEntered;
 
         /// <summary>
         /// The event raised when a character exits a zone.
         /// First argument is the zone which was exited.
         /// Second argument is the character that exited the zone.
         /// </summary>
-        public event Action<Geometry, Combatant> ZoneExited;
+        public event Action<Geometry, Character> ZoneExited;
         #endregion
 
         #region Constructors
@@ -164,26 +164,26 @@ namespace Parry.Combat
         /// of the geometry. If a character begins or stops intersecting the
         /// geometry, triggers zone events.
         /// </summary>
-        /// <param name="combatants">
+        /// <param name="chars">
         /// A list of all characters.
         /// </param>
-        public List<Combatant> IsIntersecting(List<Combatant> combatants)
+        public List<Character> IsIntersecting(List<Character> chars)
         {
-            for (int i = 0; i < combatants.Count; i++)
+            for (int i = 0; i < chars.Count; i++)
             {
                 bool doesIntersect = IsIntersecting(
-                    combatants[i].WrappedChar.Location.Data.Item1,
-                    combatants[i].WrappedChar.Location.Data.Item2);
+                    chars[i].CharStats.Location.Data.Item1,
+                    chars[i].CharStats.Location.Data.Item2);
 
-                if (doesIntersect && !CharactersInZone.Contains(combatants[i]))
+                if (doesIntersect && !CharactersInZone.Contains(chars[i]))
                 {
-                    CharactersInZone.Add(combatants[i]);
-                    ZoneEntered?.Invoke(this, combatants[i]);
+                    CharactersInZone.Add(chars[i]);
+                    ZoneEntered?.Invoke(this, chars[i]);
                 }
-                else if (!doesIntersect && CharactersInZone.Contains(combatants[i]))
+                else if (!doesIntersect && CharactersInZone.Contains(chars[i]))
                 {
-                    CharactersInZone.Remove(combatants[i]);
-                    ZoneExited?.Invoke(this, combatants[i]);
+                    CharactersInZone.Remove(chars[i]);
+                    ZoneExited?.Invoke(this, chars[i]);
                 }
             }
 

@@ -5,7 +5,7 @@ using System.Linq;
 namespace Parry.Combat
 {
     /// <summary>
-    /// Automates combat between any number of combatants.
+    /// Automates combat between any number of characters.
     /// </summary>
     public class Session
     {
@@ -18,32 +18,32 @@ namespace Parry.Combat
 
         #region Private Variables
         /// <summary>
-        /// Lists all combatants for the current round (most recent) and
-        /// previous rounds. Position 0 is the state before combat. Combatants
-        /// are organized by combat speed, with simultaneous combatants
+        /// Lists all characters for the current round (most recent) and
+        /// previous rounds. Position 0 is the state before combat. Characters
+        /// are organized by combat speed, with simultaneous characters
         /// organized by original relative position in the list.
         /// </summary>
-        private List<List<Combatant>> combatants;
+        private List<List<Character>> chars;
 
         /// <summary>
-        /// Stores current combatants in turn order.
+        /// Stores current characters in turn order.
         /// </summary>
-        private List<Combatant> combatantsInOrder;
+        private List<Character> charsInOrder;
 
         /// <summary>
-        /// The combatant whose turn is currently in effect.
+        /// The character whose turn is currently in effect.
         /// </summary>
-        private Combatant combatant;
+        private Character character;
 
         /// <summary>
         /// These characters are removed after finishing any character's moves.
         /// </summary>
-        private List<Character> combatantsToRemove;
+        private List<Character> charsToRemove;
 
         /// <summary>
         /// These characters are added after finishing any character's moves.
         /// </summary>
-        private List<Combatant> combatantsToAdd;
+        private List<Character> charsToAdd;
 
         /// <summary>
         /// Tracks all walls and zones on the battlefield.
@@ -53,21 +53,9 @@ namespace Parry.Combat
 
         #region Public Variables
         /// <summary>
-        /// When true, AI will execute turn-by-turn using the latest game state
-        /// rather than making all decisions at the start of the round. It will
-        /// come into effect at the start of the next round after turning on.
-        /// Default value is false.
-        /// </summary>
-        public bool AsynchronousTurnsEnabled
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// After each combatant executes their move, they are reinserted into
+        /// After each character executes their move, they are reinserted into
         /// combat if they're remaining speed is greater than the minimum speed
-        /// among combatants that round.
+        /// among characters that round.
         /// False by default.
         /// </summary>
         public bool ExtraTurnsEnabled
@@ -78,7 +66,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// When true, instead of stopping combat when there's only one team
-        /// left, each remaining combatant's team ID will be set to a unique
+        /// left, each remaining character's team ID will be set to a unique
         /// value starting at 0 and counting up. Then combat will continue
         /// until there is only one character left or it's manually stopped.
         /// False by default.
@@ -91,7 +79,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// The number of previous rounds to store in memory, which enables
-        /// users to create AI behavior based on previous combatant behaviors
+        /// users to create AI behavior based on previous character behaviors
         /// and performances. Can't be negative.
         /// 10 by default.
         /// </summary>
@@ -102,9 +90,9 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// When enabled, combatants with the same speed will take their turns
+        /// When enabled, characters with the same speed will take their turns
         /// in order without flushing the add and remove queues between. This
-        /// allows e.g. two combatants to deal lethal damage to each other.
+        /// allows e.g. two characters to deal lethal damage to each other.
         /// False by default.
         /// </summary>
         public bool SimultaneousTurnsEnabled
@@ -114,8 +102,8 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// When true, the minimum speed among all combatants is subtracted
-        /// from each combatant's speed last round, and the remainder is added
+        /// When true, the minimum speed among all characters is subtracted
+        /// from each character's speed last round, and the remainder is added
         /// to the next round.
         /// False by default.
         /// </summary>
@@ -140,12 +128,12 @@ namespace Parry.Combat
         /// <summary>
         /// The event raised just after a character's turn starts.
         /// </summary>
-        public event Action<Combatant> TurnStart;
+        public event Action<Character> TurnStart;
 
         /// <summary>
         /// The event raised just before a character's turn ends.
         /// </summary>
-        public event Action<Combatant> TurnEnd;
+        public event Action<Character> TurnEnd;
 
         /// <summary>
         /// The event raised when a character selects a move.
@@ -157,7 +145,7 @@ namespace Parry.Combat
         /// The event raised when a character selects their targets.
         /// First argument is the list of targets selected.
         /// </summary>
-        public event Action<List<Combatant>> TargetsSelected;
+        public event Action<List<Character>> TargetsSelected;
 
         /// <summary>
         /// The event raised after a character selects their movement before
@@ -187,9 +175,9 @@ namespace Parry.Combat
 
         /// <summary>
         /// The event raised after a character is added to combat.
-        /// First argument is the combatant that was added.
+        /// First argument is the character that was added.
         /// </summary>
-        public event Action<Combatant> CharacterAdded;
+        public event Action<Character> CharacterAdded;
 
         /// <summary>
         /// The event raised after a character is removed from combat.
@@ -202,14 +190,14 @@ namespace Parry.Combat
         /// First argument is the zone which was entered.
         /// Second argument is the character that entered the zone.
         /// </summary>
-        public event Action<Geometry, Combatant> ZoneEntered;
+        public event Action<Geometry, Character> ZoneEntered;
 
         /// <summary>
         /// The event raised when a character exits a zone.
         /// First argument is the zone which was exited.
         /// Second argument is the character that exited the zone.
         /// </summary>
-        public event Action<Geometry, Combatant> ZoneExited;
+        public event Action<Geometry, Character> ZoneExited;
         #endregion
 
         #region Constructors
@@ -226,7 +214,6 @@ namespace Parry.Combat
         /// </summary>
         public Session()
         {
-            AsynchronousTurnsEnabled = false;
             ResetSession();
             FreeForAllEnabled = false;
             SpeedCarriesOver = false;
@@ -238,79 +225,72 @@ namespace Parry.Combat
 
         #region Private Methods
         /// <summary>
-        /// Returns combatants in turn order, or an empty list if combat has
+        /// Returns characters in turn order, or an empty list if combat has
         /// not been initialized yet.
         /// </summary>
-        private List<Combatant> GetTurnOrder()
+        private List<Character> GetTurnOrder()
         {
-            if (combatants.Count == 0)
+            if (chars.Count == 0)
             {
-                return new List<Combatant>();
+                return new List<Character>();
             }
 
-            combatants[0].ForEach(o =>
+            chars[0].ForEach(o =>
             {
-                o.Speed = o.WrappedChar.Stats.MoveSpeed.Data
-                    + o.WrappedChar.MoveSelectBehavior.Perform(combatants).MoveSpeed;
+                o.CharStats.Speed = o.CombatStats.MoveSpeed.Data
+                    + o.MoveSelectBehavior.Perform(chars).MoveSpeed;
             });
 
-            int minSpeed = combatants[0].Min(o => o.Speed);
-            combatants[0].ForEach(o =>
+            int minSpeed = chars[0].Min(o => o.CharStats.Speed);
+            chars[0].ForEach(o =>
             {
                 if (SpeedCarriesOver)
                 {
-                    o.Speed += o.AccumulatedSpeed - minSpeed;
-                    o.AccumulatedSpeed = o.Speed;
+                    o.CharStats.Speed += o.CharStats.AccumulatedSpeed - minSpeed;
+                    o.CharStats.AccumulatedSpeed = o.CharStats.Speed;
                 }
             });
 
             // Organizes by groups for first, normal priority, last all by speed.
-            List<Combatant> orderedCombatants = combatants[0].OrderByDescending(o => o.Speed).ToList();
-            List<Combatant> firstCombatants = new List<Combatant>();
-            List<Combatant> lastCombatants = new List<Combatant>();
+            List<Character> orderedChars = chars[0].OrderByDescending(o => o.CharStats.Speed).ToList();
+            List<Character> firstChars = new List<Character>();
+            List<Character> lastChars = new List<Character>();
             
-            for (int i = orderedCombatants.Count - 1; i >= 0; i--)
+            for (int i = orderedChars.Count - 1; i >= 0; i--)
             {
-                if (orderedCombatants[i].WrappedChar.Stats.SpeedStatus.Data == Constants.SpeedStatuses.AlwaysFirst)
+                if (orderedChars[i].CombatStats.SpeedStatus.Data == Constants.SpeedStatuses.AlwaysFirst)
                 {
-                    firstCombatants.Insert(0, orderedCombatants[i]);
-                    orderedCombatants.RemoveAt(i);
+                    firstChars.Insert(0, orderedChars[i]);
+                    orderedChars.RemoveAt(i);
                 }
-                else if (orderedCombatants[i].WrappedChar.Stats.SpeedStatus.Data == Constants.SpeedStatuses.AlwaysLast)
+                else if (orderedChars[i].CombatStats.SpeedStatus.Data == Constants.SpeedStatuses.AlwaysLast)
                 {
-                    lastCombatants.Insert(0, orderedCombatants[i]);
-                    orderedCombatants.RemoveAt(i);
+                    lastChars.Insert(0, orderedChars[i]);
+                    orderedChars.RemoveAt(i);
                 }
             }
 
-            firstCombatants.AddRange(orderedCombatants);
-            firstCombatants.AddRange(lastCombatants);
-            return firstCombatants;
+            firstChars.AddRange(orderedChars);
+            firstChars.AddRange(lastChars);
+            return firstChars;
         }
 
         /// <summary>
-        /// Executes move logic for the active combatant.
+        /// Executes move logic for the active character.
         /// This is the fourth and last step in executing a turn.
         /// </summary>
         /// <param name="session">
         /// An active combat session.
         /// </param>
         private void PerformMove(
-            List<Combatant> targets,
+            List<Character> targets,
             Move chosenMove)
         {
-            if (AsynchronousTurnsEnabled)
-            {
-                chosenMove.Perform(combatant, combatants[0], targets, AsynchronousTurnsEnabled);
-            }
-            else
-            {
-                chosenMove.Perform(combatant, combatants[0], targets, AsynchronousTurnsEnabled);
-            }
+            chosenMove.Perform(character, chars[0], targets);
         }
 
         /// <summary>
-        /// Executes pre-move movement logic for the active combatant.
+        /// Executes pre-move movement logic for the active character.
         /// This is the second step in executing a turn.
         /// </summary>
         /// <param name="session">
@@ -318,22 +298,21 @@ namespace Parry.Combat
         /// </param>
         private Tuple<float, float> PerformMovementBefore(Move chosenMove)
         {
-            if (!combatant.WrappedChar.CombatMovementEnabled.Data ||
-                !combatant.WrappedChar.CombatMovementBeforeEnabled.Data)
+            if (!character.CombatMovementBeforeEnabled.Data)
             {
-                return combatant.WrappedChar.Location.Data;
+                return character.CharStats.Location.Data;
             }
 
             if (chosenMove.MovementBeforeBehavior == null)
             {
-                return combatant.WrappedChar.DefaultMovementBeforeBehavior.Perform(combatants[0], combatant, chosenMove);
+                return character.DefaultMovementBeforeBehavior.Perform(chars[0], character, chosenMove);
             }
 
-            return chosenMove.MovementBeforeBehavior.Perform(combatants[0], combatant, chosenMove);
+            return chosenMove.MovementBeforeBehavior.Perform(chars[0], character, chosenMove);
         }
 
         /// <summary>
-        /// Executes post-move movement logic for the active combatant.
+        /// Executes post-move movement logic for the active character.
         /// This is the third step in executing a turn.
         /// </summary>
         /// <param name="session">
@@ -341,22 +320,21 @@ namespace Parry.Combat
         /// </param>
         private Tuple<float, float> PerformMovementAfter(Move chosenMove)
         {
-            if (!combatant.WrappedChar.CombatMovementEnabled.Data ||
-                !combatant.WrappedChar.CombatMovementAfterEnabled.Data)
+            if (!character.CombatMovementAfterEnabled.Data)
             {
-                return combatant.WrappedChar.Location.Data;
+                return character.CharStats.Location.Data;
             }
 
             if (chosenMove.MovementAfterBehavior == null)
             {
-                return combatant.WrappedChar.DefaultMovementAfterBehavior.Perform(combatants[0], combatant, chosenMove);
+                return character.DefaultMovementAfterBehavior.Perform(chars[0], character, chosenMove);
             }
 
-            return chosenMove.MovementAfterBehavior.Perform(combatants[0], combatant, chosenMove);
+            return chosenMove.MovementAfterBehavior.Perform(chars[0], character, chosenMove);
         }
 
         /// <summary>
-        /// Executes move selection logic for the active combatant.
+        /// Executes move selection logic for the active character.
         /// This is the first step in executing a turn.
         /// </summary>
         /// <param name="session">
@@ -364,45 +342,45 @@ namespace Parry.Combat
         /// </param>
         private Move PerformMoveSelect()
         {
-            return combatant.WrappedChar.MoveSelectBehavior.Perform(combatants);
+            return character.MoveSelectBehavior.Perform(chars);
         }
 
         /// <summary>
-        /// Executes targeting logic for the active combatant.
+        /// Executes targeting logic for the active character.
         /// This is the third step in executing a turn.
         /// </summary>
-        private List<Combatant> PerformTargeting(Move chosenMove)
+        private List<Character> PerformTargeting(Move chosenMove)
         {
-            if (!combatant.WrappedChar.CombatTargetingEnabled.Data)
+            if (!character.CombatTargetingEnabled.Data)
             {
-                return new List<Combatant>();
+                return new List<Character>();
             }
 
             if (chosenMove.TargetBehavior == null)
             {
-                return combatant.WrappedChar.DefaultTargetBehavior.Perform(combatants, combatant);
+                return character.DefaultTargetBehavior.Perform(chars, character);
             }
 
-            return chosenMove.TargetBehavior.Perform(combatants, combatant);
+            return chosenMove.TargetBehavior.Perform(chars, character);
         }
 
         /// <summary>
         /// Recomputes targets after adjusting all distance-based factors. This
         /// is not a discrete step in a turn.
         /// </summary>
-        private List<Combatant> PerformAdjustTargets(Move chosenMove)
+        private List<Character> PerformAdjustTargets(Move chosenMove)
         {
-            if (!combatant.WrappedChar.CombatTargetingEnabled.Data)
+            if (!character.CombatTargetingEnabled.Data)
             {
-                return new List<Combatant>();
+                return new List<Character>();
             }
 
             if (chosenMove.TargetBehavior == null)
             {
-                return combatant.WrappedChar.DefaultTargetBehavior.PostMovePerform(combatants, combatant);
+                return character.DefaultTargetBehavior.PostMovePerform(chars, character);
             }
 
-            return chosenMove.TargetBehavior.PostMovePerform(combatants, combatant);
+            return chosenMove.TargetBehavior.PostMovePerform(chars, character);
         }
 
         /// <summary>
@@ -413,9 +391,9 @@ namespace Parry.Combat
         /// </summary>
         private void SubscribeGeometryZoneEntered(
             Geometry theGeometry,
-            Combatant combatant)
+            Character character)
         {
-            ZoneEntered?.Invoke(theGeometry, combatant);
+            ZoneEntered?.Invoke(theGeometry, character);
         }
 
         /// <summary>
@@ -426,37 +404,24 @@ namespace Parry.Combat
         /// </summary>
         private void SubscribeGeometryZoneExited(
             Geometry theGeometry,
-            Combatant combatant)
+            Character character)
         {
-            ZoneExited?.Invoke(theGeometry, combatant);
+            ZoneExited?.Invoke(theGeometry, character);
         }
         #endregion
 
         #region Public Methods
         /// <summary>
-        /// Queues to add the given combatant to combat. They are added as soon
-        /// as the next turn begins. Takes off the removal queue.
-        /// </summary>
-        /// <param name="combatant">
-        /// The combatant to be added to combat.
-        /// </param>
-        public void AddCharacter(Combatant combatant)
-        {
-            combatantsToAdd.Add(combatant);
-            combatantsToRemove.Remove(combatant.WrappedChar);
-        }
-
-        /// <summary>
         /// Queues to add the given character to combat. They are added as soon
         /// as the next turn begins. Takes off the removal queue.
         /// </summary>
-        /// <param name="newChar">
+        /// <param name="character">
         /// The character to be added to combat.
         /// </param>
-        public void AddCharacter(Character newChar)
+        public void AddCharacter(Character character)
         {
-            combatantsToAdd.Add(new Combatant(newChar));
-            combatantsToRemove.Remove(newChar);
+            charsToAdd.Add(character);
+            charsToRemove.Remove(character);
         }
 
         /// <summary>
@@ -477,25 +442,25 @@ namespace Parry.Combat
         /// Starts combat. Call this function after adding all characters that
         /// will participate in the first round, and before any functions that
         /// deal with turns and rounds. Unlike resetting the session, this does
-        /// not clear the geometry or combatants to add (which is how to add
+        /// not clear the geometry or characters to add (which is how to add
         /// characters at the start of the combat).
         /// </summary>
         public void StartSession()
         {
-            combatant = null;
-            combatants.Clear();
-            combatants.Add(new List<Combatant>());
+            character = null;
+            chars.Clear();
+            chars.Add(new List<Character>());
             
-            for (int i = 0; i < combatantsToAdd.Count; i++)
+            for (int i = 0; i < charsToAdd.Count; i++)
             {
-                combatants[0].Add(combatantsToAdd[i]);
-                CharacterAdded?.Invoke(combatantsToAdd[i]);
-                combatantsToAdd[i].WrappedChar.RaiseCharacterAdded();
+                chars[0].Add(charsToAdd[i]);
+                CharacterAdded?.Invoke(charsToAdd[i]);
+                charsToAdd[i].RaiseCharacterAdded();
             }
 
-            combatantsToRemove.Clear();
-            combatantsToAdd.Clear();
-            combatantsInOrder = GetTurnOrder();
+            charsToRemove.Clear();
+            charsToAdd.Clear();
+            charsInOrder = GetTurnOrder();
         }
 
         /// <summary>
@@ -506,14 +471,6 @@ namespace Parry.Combat
         /// </summary>
         public void ExecuteRound()
         {
-            if (!AsynchronousTurnsEnabled)
-            {
-                for (int i = 0; i < combatantsInOrder.Count; i++)
-                {
-                    combatantsInOrder[i].WrappedChar.TakeSnapshot();
-                }
-            }
-
             RoundStarting?.Invoke();
 
             while (NextTurn())
@@ -522,50 +479,50 @@ namespace Parry.Combat
             }
 
             RoundEnding?.Invoke();
-            combatantsInOrder.Clear();
+            charsInOrder.Clear();
 
             //Adds to history.
-            if (combatants.Count > 0)
+            if (chars.Count > 0)
             {
-                List<Combatant> previousRound = new List<Combatant>();
-                for (int i = 0; i < combatants[0].Count; i++)
+                List<Character> previousRound = new List<Character>();
+                for (int i = 0; i < chars[0].Count; i++)
                 {
-                    previousRound.Add(new Combatant(new Character(combatants[0][i].WrappedChar, true)));
+                    previousRound.Add(new Character(chars[0][i], true));
                 }
 
-                combatants.Insert(1, previousRound);
-                if (combatants.Count - 1 > RoundHistoryLimit)
+                chars.Insert(1, previousRound);
+                if (chars.Count - 1 > RoundHistoryLimit)
                 {
-                    combatants.RemoveAt(combatants.Count - 1);
+                    chars.RemoveAt(chars.Count - 1);
                 }
 
                 //Removes characters.
-                for (int i = 0; i < combatantsToRemove.Count; i++)
+                for (int i = 0; i < charsToRemove.Count; i++)
                 {
-                    CharacterRemoved?.Invoke(combatantsToRemove[i]);
-                    combatantsToRemove[i].RaiseCharacterRemoved();
-                    combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
+                    chars[0].Remove(charsToRemove[i]);
+                    CharacterRemoved?.Invoke(charsToRemove[i]);
+                    charsToRemove[i].RaiseCharacterRemoved();
                 }
             }
             else
             {
-                combatants.Add(new List<Combatant>());
+                chars.Add(new List<Character>());
             }
 
             //Adds characters.
-            for (int i = 0; i < combatantsToAdd.Count; i++)
+            for (int i = 0; i < charsToAdd.Count; i++)
             {
-                combatants[0].Add(combatantsToAdd[i]);
-                CharacterAdded?.Invoke(combatantsToAdd[i]);
-                combatantsToAdd[i].WrappedChar.RaiseCharacterAdded();
+                chars[0].Add(charsToAdd[i]);
+                CharacterAdded?.Invoke(charsToAdd[i]);
+                charsToAdd[i].RaiseCharacterAdded();
             }
 
-            combatantsToRemove.Clear();
-            combatantsToAdd.Clear();
+            charsToRemove.Clear();
+            charsToAdd.Clear();
         }
 
         /// <summary>
-        /// Plays the turn of the current combatant. Advances the turn if
+        /// Plays the turn of the current character. Advances the turn if
         /// doAdvance is true, or round if on the last turn.
         /// Returns true unless there isn't another round and combat ends.
         /// Turn structure:
@@ -579,102 +536,94 @@ namespace Parry.Combat
         /// </summary>
         public void ExecuteTurn()
         {
-            int indexOfCombatant = combatantsInOrder.IndexOf(combatant);
-
-            if (indexOfCombatant == 0 && !AsynchronousTurnsEnabled)
-            {
-                for (int i = 0; i < combatantsInOrder.Count; i++)
-                {
-                    combatantsInOrder[i].WrappedChar.TakeSnapshot();
-                }
-            }
-
             // Start of turn
-            TurnStart?.Invoke(combatant);
-            combatant.WrappedChar.RaiseTurnStart();
+            TurnStart?.Invoke(character);
+            character.RaiseTurnStart();
 
             // Move selection
             Move move = PerformMoveSelect();
             MoveSelected?.Invoke(move);
-            combatant.WrappedChar.RaiseMoveSelected(move);
+            character.RaiseMoveSelected(move);
 
             // Targeting
-            List<Combatant> targets = PerformTargeting(move);
+            List<Character> targets = PerformTargeting(move);
             TargetsSelected?.Invoke(targets);
-            combatant.WrappedChar.RaiseTargetsSelected(targets);
+            character.RaiseTargetsSelected(targets);
 
-            foreach (Combatant target in targets)
+            foreach (Character target in targets)
             {
-                target.WrappedChar.RaiseTargeted();
+                target.RaiseTargeted();
             }
 
             // Movement 1
             Tuple<float, float> movementBefore = PerformMovementBefore(move);
-            Tuple<float, float> oldMovement = combatant.WrappedChar.Location.Data;
-            combatant.WrappedChar.Location.Data = movementBefore;
+            Tuple<float, float> oldMovement = character.CharStats.Location.Data;
+            character.CharStats.Location.Data = movementBefore;
             MovementBeforeSelected?.Invoke(oldMovement);
-            combatant.WrappedChar.RaiseMovementBeforeSelected(oldMovement);
+            character.RaiseMovementBeforeSelected(oldMovement);
 
             // Re-targeting
-            List<Combatant> adjustedTargets = PerformAdjustTargets(move);
-            List<Combatant> newTargets = targets.Except(adjustedTargets).ToList();
+            List<Character> adjustedTargets = PerformAdjustTargets(move);
+            List<Character> newTargets = targets.Except(adjustedTargets).ToList();
             TargetsSelected?.Invoke(newTargets);
-            combatant.WrappedChar.RaiseTargetsSelected(newTargets);
+            character.RaiseTargetsSelected(newTargets);
 
-            foreach (Combatant target in newTargets)
+            foreach (Character target in newTargets)
             {
-                target.WrappedChar.RaiseTargeted();
+                target.RaiseTargeted();
             }
 
             // Action
             BeforeMove?.Invoke();
-            combatant.WrappedChar.RaiseBeforeMove();
+            character.RaiseBeforeMove();
             move.UsesPerTurnProgress = move.UsesPerTurn;
             PerformMove(adjustedTargets, move);
-            combatant.WrappedChar.RaiseAfterMove();
+            character.RaiseAfterMove();
             AfterMove?.Invoke();
 
             // Movement 2
             Tuple<float, float> movementAfter = PerformMovementAfter(move);
-            oldMovement = combatant.WrappedChar.Location.Data;
-            combatant.WrappedChar.Location.Data = movementAfter;
+            oldMovement = character.CharStats.Location.Data;
+            character.CharStats.Location.Data = movementAfter;
             MovementAfterSelected?.Invoke(oldMovement);
-            combatant.WrappedChar.RaiseMovementAfterSelected(oldMovement);
+            character.RaiseMovementAfterSelected(oldMovement);
 
             // End of turn
-            TurnEnd?.Invoke(combatant);
-            combatant.WrappedChar.RaiseTurnEnd();
+            TurnEnd?.Invoke(character);
+            character.RaiseTurnEnd();
 
             // Handles actions after each turn
+            int charIndex = charsInOrder.IndexOf(character);
+
             if (!SimultaneousTurnsEnabled ||
-                indexOfCombatant == combatantsInOrder.Count - 1 ||
-                combatantsInOrder[indexOfCombatant].Speed >
-                combatantsInOrder[indexOfCombatant + 1].Speed)
+                charIndex == charsInOrder.Count - 1 ||
+                charsInOrder[charIndex].CharStats.Speed >
+                charsInOrder[charIndex + 1].CharStats.Speed)
             {
-                for (int i = 0; i < combatants[0].Count; i++)
+                for (int i = 0; i < chars[0].Count; i++)
                 {
-                    if (combatants[0][i].CurrentHealth.Data <= 0 &&
-                        combatants[0][i].WrappedChar.Stats.HealthStatus.Data ==
+                    if (chars[0][i].CharStats.Health.Data <= 0 &&
+                        chars[0][i].CombatStats.HealthStatus.Data ==
                         Constants.HealthStatuses.RemoveAtZero)
                     {
-                        combatantsToRemove.Add(combatants[0][i].WrappedChar);
+                        charsToRemove.Add(chars[0][i]);
                     }
                 }
 
-                FlushCombatantQueue();
+                FlushCharacterQueue();
             }
         }
 
         /// <summary>
-        /// Advances to the next round, recomputing the combatant order,
+        /// Advances to the next round, recomputing the character order,
         /// storing character history and triggering round events.
         /// </summary>
         public bool NextRound()
         {
             if (HasNextRound())
             {
-                combatantsInOrder = GetTurnOrder();
-                combatant = null;
+                charsInOrder = GetTurnOrder();
+                character = null;
                 return true;
             }
 
@@ -682,12 +631,12 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Returns true if there are still 2+ non-allied combatants in combat.
+        /// Returns true if there are still 2+ non-allied characters in combat.
         /// </summary>
         public bool HasNextRound()
         {
-            return combatants[0].Count != 0 && combatants[0].Any(o =>
-                o.WrappedChar.TeamID != combatants[0][0].WrappedChar.TeamID);
+            return chars[0].Count != 0 && chars[0].Any(o =>
+                o.TeamID != chars[0][0].TeamID);
         }
 
         /// <summary>
@@ -696,11 +645,11 @@ namespace Parry.Combat
         /// </summary>
         public bool NextTurn()
         {
-            int indexOfCombatant = combatantsInOrder.IndexOf(combatant);
+            int charIndex = charsInOrder.IndexOf(character);
 
-            if (indexOfCombatant < combatantsInOrder.Count - 1)
+            if (charIndex < charsInOrder.Count - 1)
             {
-                combatant = combatantsInOrder[indexOfCombatant + 1];
+                character = charsInOrder[charIndex + 1];
                 return true;
             }
 
@@ -712,66 +661,66 @@ namespace Parry.Combat
         /// </summary>
         public bool HasNextTurn()
         {
-            int indexOfCombatant = combatantsInOrder.IndexOf(combatant);
-            return indexOfCombatant < combatantsInOrder.Count - 1;
+            int charIndex = charsInOrder.IndexOf(character);
+            return charIndex < charsInOrder.Count - 1;
         }
 
         /// <summary>
-        /// Adds and removes combatants in queue, then clears queues.
+        /// Adds and removes characters in queue, then clears queues.
         /// </summary>
-        private void FlushCombatantQueue()
+        private void FlushCharacterQueue()
         {
-            if (combatants.Count == 0 || combatantsInOrder.Count == 0)
+            if (chars.Count == 0 || charsInOrder.Count == 0)
             {
                 return;
             }
 
-            for (int i = 0; i < combatantsToRemove.Count; i++)
+            for (int i = 0; i < charsToRemove.Count; i++)
             {
-                combatants[0].RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
-                combatantsInOrder.RemoveAll(o => o.WrappedChar == combatantsToRemove[i]);
-                CharacterRemoved?.Invoke(combatantsToRemove[i]);
-                combatantsToRemove[i].RaiseCharacterRemoved();
+                chars[0].RemoveAll(o => o == charsToRemove[i]);
+                charsInOrder.RemoveAll(o => o == charsToRemove[i]);
+                CharacterRemoved?.Invoke(charsToRemove[i]);
+                charsToRemove[i].RaiseCharacterRemoved();
             }
 
-            combatantsToAdd.ForEach(o =>
+            charsToAdd.ForEach(o =>
             {
-                o.Speed = o.WrappedChar.Stats.MoveSpeed.Data
-                    + o.WrappedChar.MoveSelectBehavior.Perform(combatants).MoveSpeed;
+                o.CharStats.Speed = o.CombatStats.MoveSpeed.Data
+                    + o.MoveSelectBehavior.Perform(chars).MoveSpeed;
             });
 
-            int minSpeed = (combatants[0].Count > 0)
-                ? combatants[0].Min(o => o.Speed)
+            int minSpeed = (chars[0].Count > 0)
+                ? chars[0].Min(o => o.CharStats.Speed)
                 : 0;
 
-            combatantsToAdd.ForEach(o =>
+            charsToAdd.ForEach(o =>
             {
-                combatants[0].Add(o);
-                combatantsInOrder.Add(o);
+                chars[0].Add(o);
+                charsInOrder.Add(o);
                 CharacterAdded?.Invoke(o);
-                o.WrappedChar.RaiseCharacterAdded();
+                o.RaiseCharacterAdded();
 
                 if (SpeedCarriesOver)
                 {
-                    o.Speed += o.AccumulatedSpeed - minSpeed;
-                    o.AccumulatedSpeed = o.Speed;
+                    o.CharStats.Speed += o.CharStats.AccumulatedSpeed - minSpeed;
+                    o.CharStats.AccumulatedSpeed = o.CharStats.Speed;
                 }
             });
 
-            combatantsInOrder = (combatants[0].Count > 0)
-                ? combatants[0].OrderByDescending(o => o.Speed).ToList()
-                : new List<Combatant>();
+            charsInOrder = (chars[0].Count > 0)
+                ? chars[0].OrderByDescending(o => o.CharStats.Speed).ToList()
+                : new List<Character>();
         }
 
         /// <summary>
-        /// Returns a copy of the combatants list.
+        /// Returns a copy of the characters list.
         /// </summary>
-        public List<List<Combatant>> GetCombatants()
+        public List<List<Character>> GetChars()
         {
-            List<List<Combatant>> combatHistory = new List<List<Combatant>>();
-            for (int i = 0; i < combatants.Count; i++)
+            List<List<Character>> combatHistory = new List<List<Character>>();
+            for (int i = 0; i < chars.Count; i++)
             {
-                combatHistory.Add(new List<Combatant>(combatants[i]));
+                combatHistory.Add(new List<Character>(chars[i]));
             }
 
             return combatHistory;
@@ -786,21 +735,8 @@ namespace Parry.Combat
         /// </param>
         public void RemoveCharacter(Character oldChar)
         {
-            combatantsToAdd.RemoveAll(o => o.WrappedChar == oldChar);
-            combatantsToRemove.Add(oldChar);
-        }
-
-        /// <summary>
-        /// Queues to remove the given combatant from combat. They are removed
-        /// as soon as the next turn begins. Takes off the addition queue.
-        /// </summary>
-        /// <param name="oldChar">
-        /// The combatant to be removed from combat.
-        /// </param>
-        public void RemoveCharacter(Combatant oldChar)
-        {
-            combatantsToAdd.Remove(oldChar);
-            combatantsToRemove.Add(oldChar.WrappedChar);
+            charsToAdd.Remove(oldChar);
+            charsToRemove.Add(oldChar);
         }
 
         /// <summary>
@@ -823,22 +759,22 @@ namespace Parry.Combat
         /// </summary>
         public void RemoveAllCharacters()
         {
-            for (int i = 0; i < combatants.Count; i++)
+            for (int i = 0; i < chars.Count; i++)
             {
-                combatantsToRemove.Add(combatants[0][i].WrappedChar);
+                charsToRemove.Add(chars[0][i]);
             }
         }
 
         /// <summary>
-        /// Clears combatants, history and geometry.
+        /// Clears characters, history and geometry.
         /// </summary>
         public void ResetSession()
         {
-            combatants = new List<List<Combatant>>();
-            combatantsInOrder = new List<Combatant>();
-            combatant = null;
-            combatantsToRemove = new List<Character>();
-            combatantsToAdd = new List<Combatant>();
+            chars = new List<List<Character>>();
+            charsInOrder = new List<Character>();
+            character = null;
+            charsToRemove = new List<Character>();
+            charsToAdd = new List<Character>();
             geometry = new List<Geometry>();
         }
         #endregion
@@ -850,27 +786,27 @@ namespace Parry.Combat
         /// </summary>
         /// <param name="beforeRound">
         /// An optional action that will be executed before each round begins.
-        /// A list of all combatants will be given.
+        /// A list of all characters will be given.
         /// </param>
         public void ComputeCombat(Action<List<Character>> beforeRound)
         {
             while (true)
             {
                 //Stops combat if there's one or no characters left.
-                if (combatants.Count <= 1)
+                if (characters.Count <= 1)
                 {
                     break;
                 }
 
-                int teamId = combatants.Where(o => o != null).First().TeamID;
-                if (combatants.TrueForAll(o => o.TeamID == teamId))
+                int teamId = characters.Where(o => o != null).First().TeamID;
+                if (characters.TrueForAll(o => o.TeamID == teamId))
                 {
                     //Reassigns all characters to different teams.
                     if (FreeForAllEnabled)
                     {
-                        for (int i = 0; i < combatants.Count; i++)
+                        for (int i = 0; i < characters.Count; i++)
                         {
-                            combatants[i].TeamID = i;
+                            characters[i].TeamID = i;
                         }
                     }
 
@@ -881,7 +817,7 @@ namespace Parry.Combat
                     }
                 }
 
-                beforeRound?.Invoke(new List<Character>(combatants));
+                beforeRound?.Invoke(new List<Character>(characters));
                 ComputeCombatRound();
             }
         }
@@ -916,36 +852,36 @@ namespace Parry.Combat
             charsInOrder.ForEach((Action<Character>)((c) =>
             {
                 c.Actions[Constants.CharacterEvents.RoundStarting]
-                    .ForEach((object o) => o?.Invoke(combatants));
+                    .ForEach((object o) => o?.Invoke(characters));
             }));
 
             //Executes the current action of each character in order.
             for (int i = 0; i < charsInOrder.Count; i++)
             {
-                combatant = charsInOrder[i];
+                character = charsInOrder[i];
 
-                //Skips invalid combatants.
-                if (combatantsToRemove.Contains(combatant) ||
-                    !combatants.Contains(combatant))
+                //Skips invalid characters.
+                if (charactersToRemove.Contains(character) ||
+                    !characters.Contains(character))
                 {
                     continue;
                 }
 
-                //Removes combatants that aren't combat-enabled.
+                //Removes characters that aren't combat-enabled.
                 var charsLeft = charsInOrder.Where(o => o.DoRemoveFromCombat.Data == true).ToList();
                 charsInOrder.Except(charsLeft).ToList().ForEach((chr) => RemoveFromCombat(chr));
 
                 //Executes the current action.
-                if (combatant.CombatActionsEnabled?.Data == true)
+                if (character.CombatActionsEnabled?.Data == true)
                 {
-                    combatant.Actions[Constants.CharacterEvents.TurnStart]
-                        .ForEach(o => o?.Invoke(combatants));
-                    combatant.Actions[Constants.CharacterEvents.CombatTarget]
-                        .ForEach(o => o?.Invoke(combatants));
-                    combatant.Actions[Constants.CharacterEvents.CombatMovement]
-                        .ForEach(o => o?.Invoke(combatants));
-                    combatant.Actions[Constants.CharacterEvents.CombatAction]
-                        .ForEach(o => o?.Invoke(combatants));
+                    character.Actions[Constants.CharacterEvents.TurnStart]
+                        .ForEach(o => o?.Invoke(characters));
+                    character.Actions[Constants.CharacterEvents.CombatTarget]
+                        .ForEach(o => o?.Invoke(characters));
+                    character.Actions[Constants.CharacterEvents.CombatMovement]
+                        .ForEach(o => o?.Invoke(characters));
+                    character.Actions[Constants.CharacterEvents.CombatAction]
+                        .ForEach(o => o?.Invoke(characters));
                 }
 
                 //Stops combat if set from within an invoked action.
@@ -956,26 +892,26 @@ namespace Parry.Combat
             }
 
             isInCombat = false;
-            combatant = null;
+            character = null;
 
             //Fires round-ending hooks for each character.
             charsInOrder.ForEach((Action<Character>)((c) =>
             {
                 c.Actions[Constants.CharacterEvents.RoundEnding]
-                    .ForEach((object o) => o?.Invoke(combatants));
+                    .ForEach((object o) => o?.Invoke(characters));
             }));
 
             //Handles queued addition and removal from combat.
-            for (int i = 0; i < combatantsToAdd.Count; i++)
+            for (int i = 0; i < charactersToAdd.Count; i++)
             {
-                AddToCombat(combatantsToAdd[i]);
+                AddToCombat(charactersToAdd[i]);
             }
-            for (int i = 0; i < combatantsToRemove.Count; i++)
+            for (int i = 0; i < charactersToRemove.Count; i++)
             {
-                RemoveFromCombat(combatantsToRemove[i]);
+                RemoveFromCombat(charactersToRemove[i]);
             }
-            combatantsToAdd.Clear();
-            combatantsToRemove.Clear();
+            charactersToAdd.Clear();
+            charactersToRemove.Clear();
         }
 
         /// <summary>
@@ -988,55 +924,55 @@ namespace Parry.Combat
             //Returns an action that handles attacks on targets and locations.
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
 
                 //Performs attacks on each targeted character.
-                if (combatant.TargetChars?.Data.Count > 0)
+                if (character.TargetChars?.Data.Count > 0)
                 {
-                    for (int i = 0; i < combatant.TargetChars.Data.Count; i++)
+                    for (int i = 0; i < character.TargetChars.Data.Count; i++)
                     {
-                        Attack(session, combatant, combatant.TargetChars.Data[i], false, 0);
+                        Attack(session, character, character.TargetChars.Data[i], false, 0);
                     }
                 }
 
                 //Performs splash attacks based on a radius.
-                if (combatant.TargetAreas?.Data.Count > 0)
+                if (character.TargetAreas?.Data.Count > 0)
                 {
-                    for (int i = 0; i < combatant.TargetAreas.Data.Count; i++)
+                    for (int i = 0; i < character.TargetAreas.Data.Count; i++)
                     {
-                        for (int j = 0; j < combatants.Count; j++)
+                        for (int j = 0; j < characters.Count; j++)
                         {
-                            if (combatants[j] == combatant)
+                            if (characters[j] == character)
                             {
                                 continue;
                             }
 
-                            int x1 = combatant.TargetAreas?.Data[i]?.Item1 ?? 0;
-                            int y1 = combatant.TargetAreas?.Data[i]?.Item2 ?? 0;
-                            float rad = combatant.TargetAreas?.Data[i]?.Item3 ?? 0;
-                            float x2 = combatants[j].Location?.Data?.Item1 ?? 0;
-                            float y2 = combatants[j].Location?.Data?.Item2 ?? 0;
+                            int x1 = character.TargetAreas?.Data[i]?.Item1 ?? 0;
+                            int y1 = character.TargetAreas?.Data[i]?.Item2 ?? 0;
+                            float rad = character.TargetAreas?.Data[i]?.Item3 ?? 0;
+                            float x2 = characters[j].Location?.Data?.Item1 ?? 0;
+                            float y2 = characters[j].Location?.Data?.Item2 ?? 0;
                             double dist = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 
                             if (dist <= rad && rad > 0)
                             {
-                                if (combatant.SplashBehavior?.Data ==
+                                if (character.SplashBehavior?.Data ==
                                     Constants.CombatSplashBehaviors.All)
                                 {
-                                    Attack(session, combatant, combatants[j], true, (dist / rad) * 100);
+                                    Attack(session, character, characters[j], true, (dist / rad) * 100);
                                 }
-                                else if (combatant.SplashBehavior?.Data ==
+                                else if (character.SplashBehavior?.Data ==
                                     Constants.CombatSplashBehaviors.Allies &&
-                                    combatants[j].TeamID == combatant.TeamID)
+                                    characters[j].TeamID == character.TeamID)
                                 {
-                                    Attack(session, combatant, combatants[j], true, (dist / rad) * 100);
+                                    Attack(session, character, characters[j], true, (dist / rad) * 100);
                                 }
-                                else if (combatant.SplashBehavior?.Data ==
+                                else if (character.SplashBehavior?.Data ==
                                     Constants.CombatSplashBehaviors.Enemies &&
-                                    combatants[j].TeamID != combatant.TeamID)
+                                    characters[j].TeamID != character.TeamID)
                                 {
-                                    Attack(session, combatant, combatants[j], true, (dist / rad) * 100);
+                                    Attack(session, character, characters[j], true, (dist / rad) * 100);
                                 }
                             }
                         }
@@ -1054,51 +990,51 @@ namespace Parry.Combat
         {
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
-                float x1 = combatant.Location.Data.Item1;
-                float y1 = combatant.Location.Data.Item1;
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
+                float x1 = character.Location.Data.Item1;
+                float y1 = character.Location.Data.Item1;
 
                 //Moves towards the locked-on target as needed.
-                if (combatant.TargetChars.Data.Count > 0 &&
-                    combatants.Contains(combatant.TargetChars.Data[0]) &&
-                    combatant.TargetChars.Data[0].CombatEnabled.Data &&
-                    combatant.TargetPersistent.Data)
+                if (character.TargetChars.Data.Count > 0 &&
+                    characters.Contains(character.TargetChars.Data[0]) &&
+                    character.TargetChars.Data[0].CombatEnabled.Data &&
+                    character.TargetPersistent.Data)
                 {
-                    float x2 = combatant.TargetChars.Data[0].Location.Data.Item1;
-                    float y2 = combatant.TargetChars.Data[0].Location.Data.Item1;
+                    float x2 = character.TargetChars.Data[0].Location.Data.Item1;
+                    float y2 = character.TargetChars.Data[0].Location.Data.Item1;
                     double distance = Math.Sqrt(Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
                     double angle = Math.Atan2(y2 - y1, x2 - x1);
 
-                    //Moves towards the combatant.
-                    double moveDist = distance - combatant.MaxRangeAllowed.Data;
-                    if (Math.Abs(moveDist) > combatant.MovementRate.Data)
+                    //Moves towards the character.
+                    double moveDist = distance - character.MaxRangeAllowed.Data;
+                    if (Math.Abs(moveDist) > character.MovementRate.Data)
                     {
-                        moveDist = combatant.MovementRate.Data * Math.Sign(moveDist);
+                        moveDist = character.MovementRate.Data * Math.Sign(moveDist);
                     }
 
-                    combatant.Location.Data = new Tuple<float, float>(
+                    character.Location.Data = new Tuple<float, float>(
                         x1 + (float)(Math.Cos(angle) * moveDist),
                         y1 + (float)(Math.Sin(angle) * moveDist));
                 }
 
-                //Moves towards the nearest combatant; sets to target when in range.
+                //Moves towards the nearest character; sets to target when in range.
                 else
                 {
                     double angle = 0;
                     double distance = double.MaxValue;
                     int charIndex = -1;
 
-                    //Records the nearest combatant with magnitude and angle.
-                    for (int i = 0; i < combatants.Count; i++)
+                    //Records the nearest character with magnitude and angle.
+                    for (int i = 0; i < characters.Count; i++)
                     {
-                        if (combatants[i] == combatant)
+                        if (characters[i] == character)
                         {
                             continue;
                         }
 
-                        float x2 = combatants[i].Location.Data.Item1;
-                        float y2 = combatants[i].Location.Data.Item2;
+                        float x2 = characters[i].Location.Data.Item1;
+                        float y2 = characters[i].Location.Data.Item2;
                         double newDistance = Math.Sqrt(
                             Math.Pow(x2 - x1, 2) + Math.Pow(y2 - y1, 2));
 
@@ -1113,27 +1049,27 @@ namespace Parry.Combat
                     if (charIndex != -1)
                     {
                         //Adds or removes from target list based on range.
-                        if (distance >= combatant.MinRangeRequired.Data &&
-                            distance <= combatant.MaxRangeAllowed.Data)
+                        if (distance >= character.MinRangeRequired.Data &&
+                            distance <= character.MaxRangeAllowed.Data)
                         {
-                            if (!combatant.TargetChars.Data.Contains(combatants[charIndex]))
+                            if (!character.TargetChars.Data.Contains(characters[charIndex]))
                             {
-                                combatant.TargetChars.Data.Add(combatants[charIndex]);
+                                character.TargetChars.Data.Add(characters[charIndex]);
                             }
                         }
-                        else if (combatant.TargetChars.Data.Contains(combatants[charIndex]))
+                        else if (character.TargetChars.Data.Contains(characters[charIndex]))
                         {
-                            combatant.TargetChars.Data.Remove(combatants[charIndex]);
+                            character.TargetChars.Data.Remove(characters[charIndex]);
                         }
 
-                        //Moves towards the combatant.
-                        double moveDist = distance - combatant.MaxRangeAllowed.Data;
-                        if (Math.Abs(moveDist) > combatant.MovementRate.Data)
+                        //Moves towards the character.
+                        double moveDist = distance - character.MaxRangeAllowed.Data;
+                        if (Math.Abs(moveDist) > character.MovementRate.Data)
                         {
-                            moveDist = combatant.MovementRate.Data * Math.Sign(moveDist);
+                            moveDist = character.MovementRate.Data * Math.Sign(moveDist);
                         }
 
-                        combatant.Location.Data = new Tuple<float, float>(
+                        character.Location.Data = new Tuple<float, float>(
                             x1 + (float)(Math.Cos(angle) * moveDist),
                             y1 + (float)(Math.Sin(angle) * moveDist));
                     }
@@ -1142,26 +1078,26 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Moves a combatant towards the first target in their targets list.
+        /// Moves a character towards the first target in their targets list.
         /// </summary>
         public static Action<List<Character>> MoveToTarget(Session session)
         {
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
-                var firstTarget = combatant.TargetChars.Data.FirstOrDefault();
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
+                var firstTarget = character.TargetChars.Data.FirstOrDefault();
 
-                if (combatant.MovementRate.Data > 0 && firstTarget != null)
+                if (character.MovementRate.Data > 0 && firstTarget != null)
                 {
-                    float x1 = combatant.Location?.Data?.Item1 ?? 0;
-                    float y1 = combatant.Location?.Data?.Item2 ?? 0;
+                    float x1 = character.Location?.Data?.Item1 ?? 0;
+                    float y1 = character.Location?.Data?.Item2 ?? 0;
                     float x2 = firstTarget.Location?.Data?.Item1 ?? 0;
                     float y2 = firstTarget.Location?.Data?.Item2 ?? 0;
                     double dist = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
                     double moveAngle = Math.Atan2(y2 - y1, x2 - x1);
 
-                    double moveDist = combatant.MovementRate.Data;
+                    double moveDist = character.MovementRate.Data;
                     if (moveDist > dist)
                     {
                         moveDist = dist;
@@ -1169,85 +1105,85 @@ namespace Parry.Combat
                     double moveX = Math.Cos(moveAngle) * moveDist;
                     double moveY = Math.Sin(moveAngle) * moveDist;
 
-                    combatant.Location.Data = new Tuple<float, float>(
+                    character.Location.Data = new Tuple<float, float>(
                         x1 + (float)moveX, y1 + (float)moveY);
                 }
             });
         }
 
         /// <summary>
-        /// Moves a combatant until their first target is just within attack
+        /// Moves a character until their first target is just within attack
         /// range.
         /// </summary>
         public static Action<List<Character>> MoveToTargetMaxRange(Session session)
         {
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
-                var firstTarget = combatant.TargetChars.Data.FirstOrDefault();
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
+                var firstTarget = character.TargetChars.Data.FirstOrDefault();
 
-                if (combatant.MovementRate.Data > 0 && firstTarget != null)
+                if (character.MovementRate.Data > 0 && firstTarget != null)
                 {
-                    float x1 = combatant.Location?.Data?.Item1 ?? 0;
-                    float y1 = combatant.Location?.Data?.Item2 ?? 0;
+                    float x1 = character.Location?.Data?.Item1 ?? 0;
+                    float y1 = character.Location?.Data?.Item2 ?? 0;
                     float x2 = firstTarget.Location?.Data?.Item1 ?? 0;
                     float y2 = firstTarget.Location?.Data?.Item2 ?? 0;
                     double dist = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
                     double moveAngle = Math.Atan2(y2 - y1, x2 - x1);
 
-                    double moveDist = combatant.MovementRate.Data;
-                    if (moveDist > dist - combatant.MaxRangeAllowed.Data)
+                    double moveDist = character.MovementRate.Data;
+                    if (moveDist > dist - character.MaxRangeAllowed.Data)
                     {
-                        moveDist = dist - combatant.MaxRangeAllowed.Data;
+                        moveDist = dist - character.MaxRangeAllowed.Data;
                     }
 
                     double moveX = Math.Cos(moveAngle) * moveDist;
                     double moveY = Math.Sin(moveAngle) * moveDist;
 
-                    combatant.Location.Data = new Tuple<float, float>(
+                    character.Location.Data = new Tuple<float, float>(
                         x1 + (float)moveX, y1 + (float)moveY);
                 }
             });
         }
 
         /// <summary>
-        /// Moves a combatant towards the average location computed from the
+        /// Moves a character towards the average location computed from the
         /// position of all their targets.
         /// </summary>
         public static Action<List<Character>> MoveToTargets(Session session)
         {
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
 
-                if (combatant.MovementRate.Data > 0 &&
-                    combatant.TargetChars.Data.Count > 0)
+                if (character.MovementRate.Data > 0 &&
+                    character.TargetChars.Data.Count > 0)
                 {
-                    float x1 = combatant.Location?.Data?.Item1 ?? 0;
-                    float y1 = combatant.Location?.Data?.Item2 ?? 0;
-                    float x2 = combatant.TargetChars.Data
+                    float x1 = character.Location?.Data?.Item1 ?? 0;
+                    float y1 = character.Location?.Data?.Item2 ?? 0;
+                    float x2 = character.TargetChars.Data
                         .Average(o => o?.Location?.Data?.Item1 ?? 0);
-                    float y2 = combatant.TargetChars.Data
+                    float y2 = character.TargetChars.Data
                         .Average(o => o?.Location?.Data?.Item2 ?? 0);
                     double moveAngle = Math.Atan2(y2 - y1, x2 - x1);
 
-                    double moveX = Math.Cos(moveAngle) * combatant.MovementRate.Data;
-                    double moveY = Math.Sin(moveAngle) * combatant.MovementRate.Data;
+                    double moveX = Math.Cos(moveAngle) * character.MovementRate.Data;
+                    double moveY = Math.Sin(moveAngle) * character.MovementRate.Data;
 
-                    combatant.Location.Data = new Tuple<float, float>(
+                    character.Location.Data = new Tuple<float, float>(
                         x1 + (float)moveX, y1 + (float)moveY);
                 }
             });
         }
 
         /// <summary>
-        /// Moves the combatant within range of the nearest other if it has
+        /// Moves the character within range of the nearest other if it has
         /// no targets.
         /// </summary>
         /// <param name="filter">
-        /// Filters the candidates for the nearest combatant by team
+        /// Filters the candidates for the nearest character by team
         /// allegiance.
         /// </param>
         public static Action<List<Character>> MoveToNearestUntargeted(
@@ -1256,40 +1192,40 @@ namespace Parry.Combat
         {
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
 
                 //Exits if there are targets.
-                if (combatant.TargetChars.Data.Count != 0)
+                if (character.TargetChars.Data.Count != 0)
                 {
                     return;
                 }
 
-                //Filters possible combatants by team allegiance.
+                //Filters possible characters by team allegiance.
                 if (filter == Constants.CombatTargetsAllowed.OnlyAllies)
                 {
-                    combatants = combatants.Where(o => combatant.TeamID == o.TeamID && combatant != o).ToList();
+                    characters = characters.Where(o => character.TeamID == o.TeamID && character != o).ToList();
                 }
                 else if (filter == Constants.CombatTargetsAllowed.OnlyEnemies)
                 {
-                    combatants = combatants.Where(o => combatant.TeamID != o.TeamID).ToList();
+                    characters = characters.Where(o => character.TeamID != o.TeamID).ToList();
                 }
                 else
                 {
-                    combatants = combatants.Where(o => combatant != o).ToList();
+                    characters = characters.Where(o => character != o).ToList();
                 }
 
-                //Organize combatants by distance to the combatant.
-                float x1 = combatant.Location?.Data?.Item1 ?? float.MinValue;
-                float y1 = combatant.Location?.Data?.Item2 ?? float.MinValue;
+                //Organize characters by distance to the character.
+                float x1 = character.Location?.Data?.Item1 ?? float.MinValue;
+                float y1 = character.Location?.Data?.Item2 ?? float.MinValue;
                 double minimumDist = -1;
                 Tuple<float, float> minimumLoc = null;
 
-                //Records the minimum location to the nearest other combatant.
-                for (int i = 0; i < combatants.Count; i++)
+                //Records the minimum location to the nearest other character.
+                for (int i = 0; i < characters.Count; i++)
                 {
-                    float x2 = combatants[i].Location?.Data.Item1 ?? 0;
-                    float y2 = combatants[i].Location?.Data.Item2 ?? 0;
+                    float x2 = characters[i].Location?.Data.Item1 ?? 0;
+                    float y2 = characters[i].Location?.Data.Item2 ?? 0;
                     double dist = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 
                     if (dist < minimumDist || minimumDist == -1)
@@ -1303,27 +1239,27 @@ namespace Parry.Combat
                 if (minimumDist != -1)
                 {
                     double moveAngle = Math.Atan2(
-                        minimumLoc.Item2 - combatant.Location.Data.Item2,
-                        minimumLoc.Item1 - combatant.Location.Data.Item1);
+                        minimumLoc.Item2 - character.Location.Data.Item2,
+                        minimumLoc.Item1 - character.Location.Data.Item1);
 
-                    double moveDist = combatant.MovementRate.Data;
-                    if (moveDist > minimumDist - combatant.MaxRangeAllowed.Data)
+                    double moveDist = character.MovementRate.Data;
+                    if (moveDist > minimumDist - character.MaxRangeAllowed.Data)
                     {
-                        moveDist = minimumDist - combatant.MaxRangeAllowed.Data;
+                        moveDist = minimumDist - character.MaxRangeAllowed.Data;
                     }
 
                     double moveX = Math.Cos(moveAngle) * moveDist;
                     double moveY = Math.Sin(moveAngle) * moveDist;
 
-                    combatant.Location.Data = new Tuple<float, float>(
+                    character.Location.Data = new Tuple<float, float>(
                         x1 + (float)moveX, y1 + (float)moveY);
                 }
             });
         }
 
         /// <summary>
-        /// Targets the nearest X combatants based on the chosen filter
-        /// that fill within the combatant's attack range. Does not clear
+        /// Targets the nearest X characters based on the chosen filter
+        /// that fill within the character's attack range. Does not clear
         /// old targets.
         /// </summary>
         /// <param name="filter">
@@ -1339,34 +1275,34 @@ namespace Parry.Combat
         {
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
 
-                //Filters possible combatants by team allegiance.
+                //Filters possible characters by team allegiance.
                 if (filter == Constants.CombatTargetsAllowed.OnlyAllies)
                 {
-                    combatants = combatants.Where(o => combatant.TeamID == o.TeamID && combatant != o).ToList();
+                    characters = characters.Where(o => character.TeamID == o.TeamID && character != o).ToList();
                 }
                 else if (filter == Constants.CombatTargetsAllowed.OnlyEnemies)
                 {
-                    combatants = combatants.Where(o => combatant.TeamID != o.TeamID).ToList();
+                    characters = characters.Where(o => character.TeamID != o.TeamID).ToList();
                 }
 
-                //Organize combatants by distance to the combatant.
-                float x1 = combatant.Location?.Data?.Item1 ?? float.MinValue;
-                float y1 = combatant.Location?.Data?.Item2 ?? float.MinValue;
+                //Organize characters by distance to the character.
+                float x1 = character.Location?.Data?.Item1 ?? float.MinValue;
+                float y1 = character.Location?.Data?.Item2 ?? float.MinValue;
                 var charDists = new List<Tuple<Character, double>>();
 
-                for (int i = 0; i < combatants.Count; i++)
+                for (int i = 0; i < characters.Count; i++)
                 {
-                    float x2 = combatants[i].Location?.Data.Item1 ?? 0;
-                    float y2 = combatants[i].Location?.Data.Item2 ?? 0;
+                    float x2 = characters[i].Location?.Data.Item1 ?? 0;
+                    float y2 = characters[i].Location?.Data.Item2 ?? 0;
                     double dist = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 
-                    if (combatant.MinRangeRequired.Data <= dist &&
-                        combatant.MaxRangeAllowed.Data >= dist)
+                    if (character.MinRangeRequired.Data <= dist &&
+                        character.MaxRangeAllowed.Data >= dist)
                     {
-                        charDists.Add(new Tuple<Character, double>(combatants[i], dist));
+                        charDists.Add(new Tuple<Character, double>(characters[i], dist));
                     }
                 }
 
@@ -1375,17 +1311,17 @@ namespace Parry.Combat
                 //Sets the targets, skipping redundant targets.
                 for (int i = 0; i < charDists.Count && i < numberOfTargets; i++)
                 {
-                    if (!combatant.TargetChars.Data.Contains(charDists[i].Item1))
+                    if (!character.TargetChars.Data.Contains(charDists[i].Item1))
                     {
-                        combatant.TargetChars.Data.Add(charDists[i].Item1);
+                        character.TargetChars.Data.Add(charDists[i].Item1);
                     }
                 }
             });
         }
 
         /// <summary>
-        /// Targets the farthest X combatants based on the chosen filter
-        /// that fall within the combatant's attack range. Does not clear
+        /// Targets the farthest X characters based on the chosen filter
+        /// that fall within the character's attack range. Does not clear
         /// old targets.
         /// </summary>
         /// <param name="filter">
@@ -1401,34 +1337,34 @@ namespace Parry.Combat
         {
             return new Action<List<Character>>((chrs) =>
             {
-                Character combatant = session.GetCombatant();
-                List<Character> combatants = session.GetCombatants();
+                Character character = session.GetCharacter();
+                List<Character> characters = session.Getcharacters();
 
-                //Filters possible combatants by team allegiance.
+                //Filters possible characters by team allegiance.
                 if (filter == Constants.CombatTargetsAllowed.OnlyAllies)
                 {
-                    combatants = combatants.Where(o => combatant.TeamID == o.TeamID && combatant != o).ToList();
+                    characters = characters.Where(o => character.TeamID == o.TeamID && character != o).ToList();
                 }
                 else if (filter == Constants.CombatTargetsAllowed.OnlyEnemies)
                 {
-                    combatants = combatants.Where(o => combatant.TeamID != o.TeamID).ToList();
+                    characters = characters.Where(o => character.TeamID != o.TeamID).ToList();
                 }
 
-                //Organize combatants by distance to the combatant.
-                float x1 = combatant.Location?.Data?.Item1 ?? float.MinValue;
-                float y1 = combatant.Location?.Data?.Item2 ?? float.MinValue;
+                //Organize characters by distance to the character.
+                float x1 = character.Location?.Data?.Item1 ?? float.MinValue;
+                float y1 = character.Location?.Data?.Item2 ?? float.MinValue;
                 var charDists = new List<Tuple<Character, double>>();
 
-                for (int i = 0; i < combatants.Count; i++)
+                for (int i = 0; i < characters.Count; i++)
                 {
-                    float x2 = combatants[i].Location?.Data.Item1 ?? 0;
-                    float y2 = combatants[i].Location?.Data.Item2 ?? 0;
+                    float x2 = characters[i].Location?.Data.Item1 ?? 0;
+                    float y2 = characters[i].Location?.Data.Item2 ?? 0;
                     double dist = Math.Sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 
-                    if (combatant.MinRangeRequired.Data <= dist &&
-                        combatant.MaxRangeAllowed.Data >= dist)
+                    if (character.MinRangeRequired.Data <= dist &&
+                        character.MaxRangeAllowed.Data >= dist)
                     {
-                        charDists.Add(new Tuple<Character, double>(combatants[i], dist));
+                        charDists.Add(new Tuple<Character, double>(characters[i], dist));
                     }
                 }
 
@@ -1437,16 +1373,16 @@ namespace Parry.Combat
                 //Sets the targets, skipping redundant targets.
                 for (int i = 0; i < charDists.Count && i < numberOfTargets; i++)
                 {
-                    if (!combatant.TargetChars.Data.Contains(charDists[i].Item1))
+                    if (!character.TargetChars.Data.Contains(charDists[i].Item1))
                     {
-                        combatant.TargetChars.Data.Add(charDists[i].Item1);
+                        character.TargetChars.Data.Add(charDists[i].Item1);
                     }
                 }
             });
         }
 
         /// <summary>
-        /// Performs an attack against the given opponent with the combatant.
+        /// Performs an attack against the given opponent with the character.
         /// Used by GetDefaultAttackAction().
         /// </summary>
         /// <param name="attacker">
@@ -1457,7 +1393,7 @@ namespace Parry.Combat
         /// </param>
         /// <param name="isSplashAttack">
         /// Whether the attack is area-based. An area-based attack hits
-        /// combatants within a radius of its epicenter given in x,y coords.
+        /// characters within a radius of its epicenter given in x,y coords.
         /// </param>
         /// <param name="splashAttackPercentDistance">
         /// For splash attacks, this is the opponent's distance from the
@@ -1471,35 +1407,35 @@ namespace Parry.Combat
             bool isSplashAttack,
             double splashAttackPercentDistance)
         {
-            Character combatant = session.GetCombatant();
-            List<Character> combatants = session.GetCombatants();
+            Character character = session.GetCharacter();
+            List<Character> characters = session.Getcharacters();
 
             //Exits if any character is invalid.
-            if (!combatants.Contains(attacker) ||
-                !combatants.Contains(opponent))
+            if (!characters.Contains(attacker) ||
+                !characters.Contains(opponent))
             {
                 attacker?.Actions[Constants.CharacterEvents.TargetInvalid]
-                    ?.ForEach(o => o?.Invoke(combatants));
+                    ?.ForEach(o => o?.Invoke(characters));
                 return;
             }
 
             //Event hooks for initializing an attack.
             attacker?.Actions[Constants.CharacterEvents.TargetsSelected]
-                ?.ForEach(o => o?.Invoke(combatants));
+                ?.ForEach(o => o?.Invoke(characters));
 
             if (isSplashAttack)
             {
                 attacker?.Actions[Constants.CharacterEvents.AttackingByArea]
-                    ?.ForEach(o => o?.Invoke(combatants));
+                    ?.ForEach(o => o?.Invoke(characters));
             }
             else
             {
                 attacker?.Actions[Constants.CharacterEvents.AttackingTarget]
-                    ?.ForEach(o => o?.Invoke(combatants));
+                    ?.ForEach(o => o?.Invoke(characters));
             }
 
             opponent?.Actions[Constants.CharacterEvents.Targeted]
-                ?.ForEach(o => o?.Invoke(combatants));
+                ?.ForEach(o => o?.Invoke(characters));
 
             //Ignores character targets that are out-of-range.
             float x1, y1, x2, y2;
@@ -1516,7 +1452,7 @@ namespace Parry.Combat
                     dist > attacker.MaxRangeAllowed.Data)
                 {
                     attacker?.Actions[Constants.CharacterEvents.TargetOutOfRange]
-                        ?.ForEach(o => o?.Invoke(combatants));
+                        ?.ForEach(o => o?.Invoke(characters));
                     return;
                 }
             }
@@ -1528,7 +1464,7 @@ namespace Parry.Combat
                 opponent.PercentToDodge.Data))
             {
                 attacker?.Actions[Constants.CharacterEvents.AttackHit]
-                    ?.ForEach(o => o?.Invoke(combatants));
+                    ?.ForEach(o => o?.Invoke(characters));
 
                 //Administers physical knockback effects.
                 int moveMagnitude = attacker.MinLocationKnockback.Data +
@@ -1570,7 +1506,7 @@ namespace Parry.Combat
                         Constants.CriticalStatuses.Normal)
                     {
                         attacker?.Actions[Constants.CharacterEvents.AttackCritHit]
-                            ?.ForEach(o => o?.Invoke(combatants));
+                            ?.ForEach(o => o?.Invoke(characters));
 
                         dmg *= attacker.CritDamageMultiplier.Data[j];
                     }
@@ -1592,7 +1528,7 @@ namespace Parry.Combat
                             (int)opponent.PercentKnockback.Data != 0)
                         {
                             opponent.Actions[Constants.CharacterEvents.AttackKnockback]
-                                ?.ForEach(o => o?.Invoke(combatants));
+                                ?.ForEach(o => o?.Invoke(characters));
 
                             attacker.Health.Data -=
                                 (opponent.ConstantKnockback.Data +
@@ -1604,7 +1540,7 @@ namespace Parry.Combat
                             if (attacker.CombatHeathStatus.Data == Constants.HealthStatuses.RemoveAtZero)
                             {
                                 attacker?.Actions[Constants.CharacterEvents.NoHealth]
-                                    ?.ForEach(o => o?.Invoke(combatants));
+                                    ?.ForEach(o => o?.Invoke(characters));
                                 session.RemoveFromCombat(attacker);
                             }
                         }
@@ -1613,7 +1549,7 @@ namespace Parry.Combat
                             if (opponent.CombatHeathStatus.Data == Constants.HealthStatuses.RemoveAtZero)
                             {
                                 opponent?.Actions[Constants.CharacterEvents.NoHealth]
-                                    ?.ForEach(o => o?.Invoke(combatants));
+                                    ?.ForEach(o => o?.Invoke(characters));
                                 session.RemoveFromCombat(opponent);
                             }
                         }
@@ -1623,7 +1559,7 @@ namespace Parry.Combat
             else
             {
                 attacker?.Actions[Constants.CharacterEvents.AttackMissed]
-                    ?.ForEach(o => o?.Invoke(combatants));
+                    ?.ForEach(o => o?.Invoke(characters));
             }
         }
         #endregion

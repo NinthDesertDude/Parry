@@ -13,8 +13,9 @@ namespace Parry.Combat
         /// <summary>
         /// When set, this function takes the combat history and returns the
         /// motive to use. Don't set when overriding Motive.
+        /// First argument: The combat history where index 0 is most current.
         /// </summary>
-        public Func<List<List<Combatant>>, Constants.Motives> GetMotive
+        public Func<List<List<Character>>, Constants.Motives> GetMotive
         {
             get;
             set;
@@ -23,8 +24,9 @@ namespace Parry.Combat
         /// <summary>
         /// Takes the list of available moves for a chosen or calculated motive
         /// with the combat history and returns the move to use.
+        /// First argument: The combat history where index 0 is most current.
         /// </summary>
-        public Func<List<List<Combatant>>, List<Move>, Move> GetMove
+        public Func<List<List<Character>>, List<Move>, Move> GetMove
         {
             get;
             set;
@@ -78,7 +80,7 @@ namespace Parry.Combat
         public MoveSelector()
         {
             GetMotive = null;
-            GetMove = new Func<List<List<Combatant>>, List<Move>, Move>((a, b) =>
+            GetMove = new Func<List<List<Character>>, List<Move>, Move>((a, b) =>
             {
                 return Moves.FirstOrDefault();
             });
@@ -92,7 +94,7 @@ namespace Parry.Combat
         /// Creates a new move selector with the given list of moves and
         /// initializes GetMove to select the first one.
         /// </summary>
-        public MoveSelector(List<Move> moves, Func<List<List<Combatant>>, List<Move>, Move> getMove)
+        public MoveSelector(List<Move> moves, Func<List<List<Character>>, List<Move>, Move> getMove)
         {
             GetMotive = null;
             GetMove = getMove;
@@ -123,12 +125,12 @@ namespace Parry.Combat
         /// available, else returns the move and changes turn fraction left.
         /// </summary>
         /// <param name="combatHistory">
-        /// The list of all combatants.
+        /// The list of all characters.
         /// </param>
         /// <param name="moves">
-        /// The list of all moves for the combatant.
+        /// The list of all moves for the character.
         /// </param>
-        public Move Perform(List<List<Combatant>> combatHistory)
+        public Move Perform(List<List<Character>> combatHistory)
         {
             List<Move> availableMoves = Moves;
 

@@ -24,35 +24,20 @@ namespace Parry
         public readonly long Id;
 
         /// <summary>
-        /// A read-only copy of this character used to 
+        /// Values used in determining behavior in combat during moves,
+        /// including built-in stats for common concepts, like knockback.
         /// </summary>
-        public Character Snapshot { get; private set; }
-
-        /// <summary>
-        /// In combat, this is the character's total possible health.
-        /// Default value is 100.
-        /// </summary>
-        public Stat<int> Health
+        public CombatStats CombatStats
         {
             get;
             set;
         }
 
         /// <summary>
-        /// The character's position in combat, if you make use of
-        /// distances.
-        /// Default location is 0, 0.
+        /// Values related to a character's state in combat which cannot be
+        /// considered a combat stat, such as location or current health.
         /// </summary>
-        public Stat<Tuple<float, float>> Location
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// Contains default values for all character stats.
-        /// </summary>
-        public Stats Stats
+        public CharacterStats CharStats
         {
             get;
             set;
@@ -90,7 +75,7 @@ namespace Parry
         /// <summary>
         /// Allows the AI to choose targets based on weighted criteria.
         /// When moves don't specify their own targeting behavior, AI will
-        /// default to the behavior associated with the combatant.
+        /// default to the behavior associated with the character.
         /// </summary>
         public TargetBehavior DefaultTargetBehavior
         {
@@ -112,7 +97,7 @@ namespace Parry
         /// Allows the AI to determine their physical movement separate from
         /// targeting and moves. When moves don't specify their own pre-move
         /// movement behavior, AI will default to the behavior associated with
-        /// the combatant.
+        /// the character.
         /// </summary>
         public MovementBehavior DefaultMovementBeforeBehavior
         {
@@ -124,19 +109,9 @@ namespace Parry
         /// Allows the AI to determine their physical movement separate from
         /// targeting and moves. When moves don't specify their own post-move
         /// movement behavior, AI will default to the behavior associated with
-        /// the combatant.
+        /// the character.
         /// </summary>
         public MovementBehavior DefaultMovementAfterBehavior
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// When false, the character will not move and skip movement AI.
-        /// True by default.
-        /// </summary>
-        public Stat<bool> CombatMovementEnabled
         {
             get;
             set;
@@ -206,7 +181,7 @@ namespace Parry
         /// The event raised when this character selects targets.
         /// First argument is the list of targets selected.
         /// </summary>
-        public event Action<List<Combatant>> TargetsSelected;
+        public event Action<List<Character>> TargetsSelected;
 
         /// <summary>
         /// The event raised when this character selects their pre-move movement.
@@ -270,9 +245,9 @@ namespace Parry
         /// The event raised when this character dodges an attacker. This is
         /// intended to be raised by a move action, and will only be raised if
         /// implemented.
-        /// First argument: The attacking combatant.
+        /// First argument: The attacking character.
         /// </summary>
-        public event Action<Combatant> AttackDodged;
+        public event Action<Character> AttackDodged;
 
         /// <summary>
         /// The event raised when a character's attack misses or is dodged by
@@ -281,7 +256,7 @@ namespace Parry
         /// First argument: The target that dodged the attack, or null if the
         /// character missed all targets by failing their chance to hit.
         /// </summary>
-        public event Action<Combatant> AttackMissed;
+        public event Action<Character> AttackMissed;
 
         /// <summary>
         /// The event raised before a character deals damage to a target. This
@@ -290,16 +265,16 @@ namespace Parry
         /// First argument: The target to receive the damage.
         /// Second argument: The amount of damage for each type of damage.
         /// </summary>
-        public event Action<Combatant, List<float>> AttackBeforeDamage;
+        public event Action<Character, List<float>> AttackBeforeDamage;
 
         /// <summary>
         /// The event raised before a character takes damage. This is intended
         /// to be raised by a move action, and will only be raised if
         /// implemented.
-        /// First argument: The combatant dealing the damage.
+        /// First argument: The character dealing the damage.
         /// Second argument: The amount of damage for each type of damage.
         /// </summary>
-        public event Action<Combatant, List<float>> AttackBeforeReceiveDamage;
+        public event Action<Character, List<float>> AttackBeforeReceiveDamage;
 
         /// <summary>
         /// The event raised after a character deals damage to a target. This
@@ -308,17 +283,17 @@ namespace Parry
         /// First argument: The target that received the damage.
         /// Second argument: The amount of damage for each type of damage.
         /// </summary>
-        public event Action<Combatant, List<float>> AttackAfterDamage;
+        public event Action<Character, List<float>> AttackAfterDamage;
 
         /// <summary>
         /// The event raised before a character deals knockback damage. This is
         /// intended to be raised by a move action, and will only be raised if
         /// implemented.
         /// First argument: The attacker.
-        /// Second argument: The targeted combatant.
+        /// Second argument: The targeted character.
         /// Third argument: The amount of damage to deal.
         /// </summary>
-        public event Action<Combatant, Combatant, float> AttackKnockback;
+        public event Action<Character, Character, float> AttackKnockback;
 
         /// <summary>
         /// The event raised before a character knocks back a target. This is
@@ -328,7 +303,7 @@ namespace Parry
         /// Second argument: The magnitude of recoil.
         /// Third argument: The new location of the target.
         /// </summary>
-        public event Action<Combatant, float, Tuple<float, float>> AttackRecoil;
+        public event Action<Character, float, Tuple<float, float>> AttackRecoil;
 
         /// <summary>
         /// The event raised before a character is knocked back. This is
@@ -338,7 +313,7 @@ namespace Parry
         /// Second argument: The magnitude of recoil.
         /// Third argument: The new location.
         /// </summary>
-        public event Action<Combatant, float, Tuple<float, float>> AttackReceiveRecoil;
+        public event Action<Character, float, Tuple<float, float>> AttackReceiveRecoil;
         #endregion
 
         #region Constructors
@@ -347,12 +322,10 @@ namespace Parry
         /// </summary>
         public Character()
         {
-            Snapshot = null;
             Id = id++;
             TeamID = 0;
-            Health = new Stat<int>(100);
-            Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
-            Stats = new Stats();
+            CharStats = new CharacterStats();
+            CombatStats = new CombatStats();
             DefaultTargetBehavior = TargetBehavior.Normal;
             MoveSelectBehavior = new MoveSelector();
             DefaultMovementBeforeBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
@@ -360,7 +333,6 @@ namespace Parry
             CombatMoveEnabled = new Stat<bool>(true);
             CombatMoveSelectEnabled = new Stat<bool>(true);
             CombatTargetingEnabled = new Stat<bool>(true);
-            CombatMovementEnabled = new Stat<bool>(true);
             CombatMovementBeforeEnabled = new Stat<bool>(true);
             CombatMovementAfterEnabled = new Stat<bool>(true);
         }
@@ -375,12 +347,10 @@ namespace Parry
         {
             if (!isDeepCopy)
             {
-                Snapshot = other.Snapshot;
                 Id = (newId) ? id++ : other.Id;
                 TeamID = other.TeamID;
-                Health = other.Health;
-                Location = other.Location;
-                Stats = other.Stats;
+                CharStats = other.CharStats;
+                CombatStats = other.CombatStats;
                 DefaultTargetBehavior = other.DefaultTargetBehavior;
                 MoveSelectBehavior = other.MoveSelectBehavior;
                 DefaultMovementBeforeBehavior = other.DefaultMovementBeforeBehavior;
@@ -388,18 +358,15 @@ namespace Parry
                 CombatMoveEnabled = other.CombatMoveEnabled;
                 CombatMoveSelectEnabled = other.CombatMoveSelectEnabled;
                 CombatTargetingEnabled = other.CombatTargetingEnabled;
-                CombatMovementEnabled = other.CombatMovementEnabled;
                 CombatMovementBeforeEnabled = other.CombatMovementBeforeEnabled;
                 CombatMovementAfterEnabled = other.CombatMovementAfterEnabled;
             }
             else
             {
-                Snapshot = null;
                 Id = (newId) ? id++ : other.Id;
                 TeamID = other.TeamID;
-                Health = new Stat<int>(other.Health.RawData);
-                Location = new Stat<Tuple<float, float>>(other.Location.RawData);
-                Stats = new Stats(other.Stats);
+                CharStats = new CharacterStats(other.CharStats);
+                CombatStats = new CombatStats(other.CombatStats);
                 DefaultTargetBehavior = new TargetBehavior(other.DefaultTargetBehavior);
                 MoveSelectBehavior = new MoveSelector(other.MoveSelectBehavior);
                 DefaultMovementBeforeBehavior = new MovementBehavior(other.DefaultMovementBeforeBehavior);
@@ -407,7 +374,6 @@ namespace Parry
                 CombatMoveEnabled = new Stat<bool>(other.CombatMoveEnabled.RawData);
                 CombatMoveSelectEnabled = new Stat<bool>(other.CombatMoveSelectEnabled.RawData);
                 CombatTargetingEnabled = new Stat<bool>(other.CombatTargetingEnabled.RawData);
-                CombatMovementEnabled = new Stat<bool>(other.CombatMovementEnabled.RawData);
                 CombatMovementBeforeEnabled = new Stat<bool>(other.CombatMovementBeforeEnabled.RawData);
                 CombatMovementAfterEnabled = new Stat<bool>(other.CombatMovementAfterEnabled.RawData);
             }
@@ -421,7 +387,7 @@ namespace Parry
         /// to the default targeting behavior, and OverrideTargets is preferred
         /// to Targets. If no suitable list is found, returns an empty list.
         /// </summary>
-        public List<Combatant> GetTargets()
+        public List<Character> GetTargets()
         {
             if (MoveSelectBehavior.ChosenMove?.TargetBehavior?.OverrideTargets != null)
             {
@@ -443,15 +409,7 @@ namespace Parry
                 return DefaultTargetBehavior.Targets;
             }
 
-            return new List<Combatant>();
-        }
-
-        /// <summary>
-        /// Takes a deep copy of this character to update the snapshot.
-        /// </summary>
-        public void TakeSnapshot()
-        {
-            Snapshot = new Character(this, true);
+            return new List<Character>();
         }
         #endregion
 
@@ -461,42 +419,42 @@ namespace Parry
             AttackCritHit?.Invoke(index, damage);
         }
 
-        public void RaiseAttackDodged(Combatant assailant)
+        public void RaiseAttackDodged(Character assailant)
         {
             AttackDodged?.Invoke(assailant);
         }
 
-        public void RaiseAttackMissed(Combatant targetMissed)
+        public void RaiseAttackMissed(Character targetMissed)
         {
             AttackMissed?.Invoke(targetMissed);
         }
 
-        public void RaiseAttackBeforeDamage(Combatant targetHit, List<float> damage)
+        public void RaiseAttackBeforeDamage(Character targetHit, List<float> damage)
         {
             AttackBeforeDamage?.Invoke(targetHit, damage);
         }
 
-        public void RaiseAttackBeforeReceiveDamage(Combatant attacker, List<float> damage)
+        public void RaiseAttackBeforeReceiveDamage(Character attacker, List<float> damage)
         {
             AttackBeforeReceiveDamage?.Invoke(attacker, damage);
         }
 
-        public void RaiseAttackAfterDamage(Combatant targetHit, List<float> damage)
+        public void RaiseAttackAfterDamage(Character targetHit, List<float> damage)
         {
             AttackAfterDamage?.Invoke(targetHit, damage);
         }
 
-        public void RaiseAttackKnockback(Combatant attacker, Combatant target, float damage)
+        public void RaiseAttackKnockback(Character attacker, Character target, float damage)
         {
             AttackKnockback?.Invoke(attacker, target, damage);
         }
 
-        public void RaiseAttackRecoil(Combatant target, float recoil, Tuple<float, float> newLocation)
+        public void RaiseAttackRecoil(Character target, float recoil, Tuple<float, float> newLocation)
         {
             AttackRecoil?.Invoke(target, recoil, newLocation);
         }
 
-        public void RaiseAttackReceiveRecoil(Combatant attacker, float recoil, Tuple<float, float> newLocation)
+        public void RaiseAttackReceiveRecoil(Character attacker, float recoil, Tuple<float, float> newLocation)
         {
             AttackReceiveRecoil?.Invoke(attacker, recoil, newLocation);
         }
@@ -526,7 +484,7 @@ namespace Parry
             MoveSelected?.Invoke(move);
         }
 
-        public void RaiseTargetsSelected(List<Combatant> targets)
+        public void RaiseTargetsSelected(List<Character> targets)
         {
             TargetsSelected?.Invoke(targets);
         }

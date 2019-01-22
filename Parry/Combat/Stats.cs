@@ -6,7 +6,7 @@ namespace Parry.Combat
     /// <summary>
     /// Represents stats in combat such as damage or critical hit chance.
     /// </summary>
-    public class Stats
+    public class CombatStats
     {
         /// <summary>
         /// Equal to 20. Values that care about types of damage are initialized
@@ -297,7 +297,7 @@ namespace Parry.Combat
         /// <summary>
         /// Sets defaults for all stats.
         /// </summary>
-        public Stats()
+        public CombatStats()
         {
             ConstantKnockback = new Stat<int>(0);
             CritDamageMultiplier = new Stat<float[]>(Enumerable.Repeat(1.0f, NUM_TYPES_DAMAGE).ToArray());
@@ -327,7 +327,7 @@ namespace Parry.Combat
         /// <summary>
         /// Copy constructor.
         /// </summary>
-        public Stats(Stats other)
+        public CombatStats(CombatStats other)
         {
             ConstantKnockback = other.ConstantKnockback;
             CritDamageMultiplier = other.CritDamageMultiplier;

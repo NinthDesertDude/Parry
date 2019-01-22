@@ -83,8 +83,8 @@
         public enum Motives
         {
             /// <summary>
-            /// The move adds an ally combatant to combat. Includes moves
-            /// like summoning or calling for aid.
+            /// The move adds an ally character. Includes moves like summoning
+            /// or calling for aid.
             /// </summary>
             AddAlly,
 
@@ -164,17 +164,17 @@
         public enum TargetOverrides
         {
             /// <summary>
-            /// Targets all allies of the combatant, including self.
+            /// Targets all allies of the character, including self.
             /// </summary>
             AllAlliesAndSelf,
 
             /// <summary>
-            /// Targets all allies of the combatant, excluding self.
+            /// Targets all allies of the character, excluding self.
             /// </summary>
             AllAlliesButSelf,
 
             /// <summary>
-            /// Targets all enemies of the combatant.
+            /// Targets all enemies of the character.
             /// </summary>
             AllEnemies,
 
@@ -184,7 +184,7 @@
             Off,
 
             /// <summary>
-            /// Targets the calling combatant only.
+            /// Targets the calling character only.
             /// </summary>
             Self
         }
