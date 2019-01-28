@@ -40,18 +40,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Combat\Geometry.cs" />
-    <Compile Include="Combat\Move.cs" />
-    <Compile Include="Combat\Movement.cs" />
-    <Compile Include="Combat\MovementBehavior.cs" />
-    <Compile Include="Combat\MoveSelector.cs" />
-    <Compile Include="Combat\CharacterStats.cs" />
-    <Compile Include="Combat\Stats.cs" />
-    <Compile Include="Combat\TargetBehavior.cs" />
-    <Compile Include="Combat\Constants.cs" />
+    <Compile Include="Geometry.cs" />
+    <Compile Include="Move.cs" />
+    <Compile Include="Movement.cs" />
+    <Compile Include="MovementBehavior.cs" />
+    <Compile Include="MoveSelector.cs" />
+    <Compile Include="CharacterStats.cs" />
+    <Compile Include="Stats.cs" />
+    <Compile Include="TargetBehavior.cs" />
+    <Compile Include="Constants.cs" />
     <Compile Include="Stat.cs" />
     <Compile Include="Character.cs" />
-    <Compile Include="Combat\Session.cs" />
+    <Compile Include="Session.cs" />
     <Compile Include="ISavable.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

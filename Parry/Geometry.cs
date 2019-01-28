@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Describes a shape at specific coordinates in combat. It can be used to

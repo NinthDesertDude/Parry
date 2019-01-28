@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using static Parry.Combat.MovementBehavior;
+using static Parry.MovementBehavior;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Couples movement behavior (motion and motion origin) with a condition

@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Represents stats in combat such as damage or critical hit chance.

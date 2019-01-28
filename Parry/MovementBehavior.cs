@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Describes the AI targeting behaviors with tendencies and

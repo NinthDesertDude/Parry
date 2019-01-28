@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// A move in combat uses intentions to tell AI what it does.

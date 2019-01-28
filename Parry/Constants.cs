@@ -1,4 +1,4 @@
-﻿namespace Parry.Combat
+﻿namespace Parry
 {
     /// <summary>
     /// Contains a strongly-bound list of constants and enums.

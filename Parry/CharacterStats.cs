@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Represents stats related to a character's state in combat, such as

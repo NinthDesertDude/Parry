@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Handles motive and move selection logic from a list of moves.

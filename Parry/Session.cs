@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Automates combat between any number of characters.
@@ -277,7 +277,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// Executes move logic for the active character.
-        /// This is the fourth and last step in executing a turn.
+        /// This is the fourth step in executing a turn.
         /// </summary>
         /// <param name="session">
         /// An active combat session.
@@ -291,7 +291,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// Executes pre-move movement logic for the active character.
-        /// This is the second step in executing a turn.
+        /// This is the third step in executing a turn.
         /// </summary>
         /// <param name="session">
         /// An active combat session.
@@ -313,7 +313,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// Executes post-move movement logic for the active character.
-        /// This is the third step in executing a turn.
+        /// This is the fifth and last step in executing a turn.
         /// </summary>
         /// <param name="session">
         /// An active combat session.
@@ -347,7 +347,7 @@ namespace Parry.Combat
 
         /// <summary>
         /// Executes targeting logic for the active character.
-        /// This is the third step in executing a turn.
+        /// This is the second step in executing a turn.
         /// </summary>
         private List<Character> PerformTargeting(Move chosenMove)
         {
@@ -464,10 +464,10 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Plays all remaining turns in the round. Advances the round if
-        /// doAdvance is true. Returns true unless there isn't another round
-        /// and combat ends, or there's no turns left in the round and
-        /// doAdvance is false.
+        /// Plays each remaining turn in the round in sequence. AI computes
+        /// when its turn begins, so this is best used for turn-based games
+        /// that let the players choose their actions mid-round when their turn
+        /// starts, since that's how the AI works.
         /// </summary>
         public void ExecuteRound()
         {
@@ -522,14 +522,12 @@ namespace Parry.Combat
         }
 
         /// <summary>
-        /// Plays the turn of the current character. Advances the turn if
-        /// doAdvance is true, or round if on the last turn.
-        /// Returns true unless there isn't another round and combat ends.
+        /// Plays the turn of the current character.
         /// Turn structure:
         /// - Turn begins
         /// - Motive and move are selected
-        /// - Pre-move Movement occurs
         /// - Targets are selected
+        /// - Pre-move Movement occurs
         /// - Move executes
         /// - Post-move Movement occurs
         /// - Turn ends
