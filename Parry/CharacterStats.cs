@@ -64,11 +64,11 @@ namespace Parry
         /// </summary>
         public CharacterStats()
         {
-            Health = new Stat<int>(100);
-            MaxHealth = new Stat<int>(100);
-            Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
-            Speed = 0;
             AccumulatedSpeed = 0;
+            Health = new Stat<int>(100);
+            Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
+            MaxHealth = new Stat<int>(100);
+            Speed = 0;
         }
 
         /// <summary>
@@ -76,12 +76,11 @@ namespace Parry
         /// </summary>
         public CharacterStats(CharacterStats other)
         {
+            AccumulatedSpeed = other.AccumulatedSpeed;
             Health = new Stat<int>(other.Health.RawData);
+            Location = new Stat<Tuple<float, float>>(other.Location.RawData);
             MaxHealth = new Stat<int>(other.MaxHealth.RawData);
             Speed = other.Speed;
-            AccumulatedSpeed = other.AccumulatedSpeed;
-            MaxHealth = new Stat<int>(other.MaxHealth.RawData);
-            Location = new Stat<Tuple<float, float>>(other.Location.RawData);
         }
         #endregion
     }

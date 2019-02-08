@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using Parry;
-using Parry.Combat;
-
-namespace ParryLaunchTester
+﻿namespace ParryLaunchTester
 {
     class Program
     {

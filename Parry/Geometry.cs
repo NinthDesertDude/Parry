@@ -14,22 +14,12 @@ namespace Parry
         /// <summary>
         /// Keeps track of all characters in the geometry.
         /// </summary>
-        public List<Character> CharactersInZone
-        {
-            get
-            {
-                return new List<Character>(CharactersInZone);
-            }
-            private set
-            {
-                CharactersInZone = value;
-            }
-        }
+        private List<Character> CharactersInZone;
 
         /// <summary>
         /// For rectangles, the height of the rectangle. Readonly.
         /// </summary>
-        public int Height
+        public float Height
         {
             get;
             private set;
@@ -38,7 +28,7 @@ namespace Parry
         /// <summary>
         /// For circles, the radius of the circle. Readonly.
         /// </summary>
-        public int Radius
+        public float Radius
         {
             get;
             private set;
@@ -56,7 +46,7 @@ namespace Parry
         /// <summary>
         /// For rectangles, the width of the rectangle. Readonly.
         /// </summary>
-        public int Width
+        public float Width
         {
             get;
             private set;
@@ -105,7 +95,7 @@ namespace Parry
         /// <param name="y">Vertical position on the battlefield.</param>
         /// <param name="width">Width of the rectangle.</param>
         /// <param name="height">Height of the rectangle.</param>
-        public Geometry(int x, int y, int width, int height)
+        public Geometry(float x, float y, float width, float height)
         {
             XPos = x;
             YPos = y;
@@ -113,6 +103,7 @@ namespace Parry
             Height = height;
             Radius = 0;
             Shape = Constants.GeometryShapes.Rectangle;
+            CharactersInZone = new List<Character>();
     }
 
         /// <summary>
@@ -121,7 +112,7 @@ namespace Parry
         /// <param name="x">Horizontal position on the battlefield.</param>
         /// <param name="y">Vertical position on the battlefield.</param>
         /// <param name="radius">Size of the circle.</param>
-        public Geometry(int x, int y, int radius)
+        public Geometry(float x, float y, float radius)
         {
             XPos = x;
             YPos = y;
@@ -129,10 +120,34 @@ namespace Parry
             Height = 0;
             Radius = radius;
             Shape = Constants.GeometryShapes.Circle;
+            CharactersInZone = new List<Character>();
+        }
+
+        /// <summary>
+        /// Copy constructor.
+        /// </summary>
+        public Geometry(Geometry other)
+        {
+            XPos = other.XPos;
+            YPos = other.YPos;
+            Width = other.Width;
+            Height = other.Height;
+            Radius = other.Radius;
+            Shape = other.Shape;
+            CharactersInZone = new List<Character>(other.CharactersInZone);
         }
         #endregion
 
         #region Methods
+        /// <summary>
+        /// Returns the cached list of characters in this zone. Use
+        /// IsIntersecting to refresh the cache.
+        /// </summary>
+        public List<Character> GetCharactersInZone()
+        {
+            return new List<Character>(CharactersInZone);
+        }
+
         /// <summary>
         /// Returns true if the given point is inside or on the perimeter
         /// of the geometry. Does not update characters in the boundary,
@@ -149,11 +164,11 @@ namespace Parry
             switch (Shape)
             {
                 case Constants.GeometryShapes.Circle:
-                    return (Math.Sqrt((x * x - XPos * XPos)
-                        + (y * y - YPos * YPos)) <= Radius);
+                    return Math.Sqrt(x * x - XPos * XPos
+                        + (y * y - YPos * YPos)) <= Radius;
                 case Constants.GeometryShapes.Rectangle:
-                    return (x >= XPos && x <= XPos + Width &&
-                        y >= YPos && y <= YPos + Height);
+                    return x >= XPos && x <= XPos + Width &&
+                        y >= YPos && y <= YPos + Height;
                 default:
                     return false;
             }

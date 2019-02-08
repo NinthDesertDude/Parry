@@ -435,7 +435,7 @@ namespace Parry
             {
                 return WeightedTargets.Select(o => o.Char).ToList();
             }
-            set
+            private set
             {
                 WeightedTargets.Clear();
                 for (int i = 0; i < value.Count; i++)

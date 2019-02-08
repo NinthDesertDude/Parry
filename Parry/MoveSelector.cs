@@ -85,7 +85,7 @@ namespace Parry
                 return Moves.FirstOrDefault();
             });
             Motive = Constants.Motives.DamageHealth;
-            Moves = new List<Move>() { new Move() };
+            Moves = new List<Move>();
             TurnFractionLeft = 1;
             ChosenMove = null;
         }

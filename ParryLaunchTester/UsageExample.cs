@@ -1,5 +1,4 @@
 ﻿using Parry;
-using Parry.Combat;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +16,7 @@ namespace ParryLaunchTester
 
             Out("You're walking through a dank dungeon when you encounter a bandit!", true);
             Character player = GenerateCharacter("player", 0);
+            player.MoveSelectBehavior.Moves.Add(new Move());
             player.DefaultMovementBeforeBehavior.Targets = new List<Character>();
             player.DefaultMovementAfterBehavior.Targets = new List<Character>();
             player.CharStats.MaxHealth.Data = 40;
@@ -29,6 +29,7 @@ namespace ParryLaunchTester
             player.CharStats.Location.Data = new Tuple<float, float>(50, 40);
 
             Character enemy1 = GenerateCharacter("Bunny", 1);
+            enemy1.MoveSelectBehavior.Moves.Add(new Move());
             enemy1.CharStats.MaxHealth.Data = 20;
             enemy1.CharStats.Health.Data = 20;
             enemy1.CombatStats.MovementRate.Data = 20;
@@ -39,6 +40,7 @@ namespace ParryLaunchTester
             enemy1.CharStats.Location.Data = new Tuple<float, float>(30, -10);
 
             Character enemy2 = GenerateCharacter("Bandit", 1);
+            enemy2.MoveSelectBehavior.Moves.Add(new Move());
             enemy2.CharStats.MaxHealth.Data = 20;
             enemy2.CharStats.Health.Data = 20;
             enemy2.CombatStats.MovementRate.Data = 20;
