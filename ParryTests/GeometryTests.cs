@@ -24,7 +24,7 @@ namespace Parry.Tests
             Assert.IsTrue(geo2.Height == 4, "Geometry height didn't match expected value.");
 
             Geometry geo3 = new Geometry(geo2);
-            Assert.IsTrue(geo3.Width == 3, "Geometry didn't copy correctly, at least for width.");
+            Assert.IsTrue(geo3.Width == 3, "Geometry didn't copy correctly for width.");
         }
 
         /// <summary>

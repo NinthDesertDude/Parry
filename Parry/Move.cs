@@ -25,6 +25,7 @@ namespace Parry
         /// After using a move with a cooldown, this is set to the cooldown
         /// value and it falls by one each turn. At 0, the move is ready
         /// for use again.
+        /// Default value is 0.
         /// </summary>
         public byte CooldownProgress
         {
@@ -122,6 +123,7 @@ namespace Parry
         /// After using a move with a turn fraction greater than 1, this is set
         /// to the turn fraction and it falls by one each turn. At 0, the move
         /// is performed.
+        /// Default is 0.
         /// </summary>
         public float TurnFractionProgress
         {
@@ -144,6 +146,7 @@ namespace Parry
         /// At the start of a turn, this is set to the uses per turn value. It
         /// decreases by 1 for each usage in the same turn. At 0, the move
         /// cannot be performed.
+        /// Default is 0.
         /// </summary>
         public int UsesPerTurnProgress
         {
@@ -247,7 +250,7 @@ namespace Parry
         {
             return IsMoveEnabled &&
                 CooldownProgress == 0 &&
-                TurnFractionProgress == 0 &&
+                TurnFractionProgress <= 1 &&
                 UsesPerTurnProgress > 0;
         }
 
@@ -263,39 +266,50 @@ namespace Parry
             {
                 CooldownProgress -= 1;
             }
-            if (TurnFractionProgress > 0)
-            {
-                TurnFractionProgress -= 1;
-            }
         }
 
         /// <summary>
         /// Performs the move with the given list of characters and targets.
-        /// Returns whether the move was performed or false if it couldn't be.
+        /// Returns whether the move was performed or false if it was null or
+        /// not performable.
         /// </summary>
         /// <param name="chars">
         /// A list of all characters.
         /// </param>
         public bool Perform(Character current, List<Character> chars, List<Character> targets)
         {
-            //Manages charge-up moves.
-            if (TurnFraction > 1 && TurnFractionProgress == 0)
-            {
-                TurnFractionProgress = TurnFraction + 1;
-            }
-
             if (CanPerform())
             {
-                UsesPerTurnProgress -= 1;
-                PerformAction(current, chars, targets);
-
-                //Starts the cooldown period if nonzero.
-                if (Cooldown != 0 && CooldownProgress == 0)
+                if (PerformAction != null)
                 {
-                    CooldownProgress = Cooldown;
-                }
+                    //Manages charge-up moves.
+                    if (TurnFraction > 1)
+                    {
+                        TurnFractionProgress = (float)Math.Round(TurnFractionProgress + TurnFraction - 1, 6);
+                    }
 
-                return true;
+                    UsesPerTurnProgress -= 1;
+                    PerformAction(current, chars, targets);
+
+                    //Starts the cooldown period if nonzero.
+                    if (Cooldown != 0 && CooldownProgress == 0)
+                    {
+                        CooldownProgress = Cooldown;
+                    }
+
+                    return true;
+                }
+            }
+            else if (TurnFractionProgress > 0)
+            {
+                if (TurnFractionProgress < 1)
+                {
+                    TurnFractionProgress = 0;
+                }
+                else
+                {
+                    TurnFractionProgress = (float)Math.Round(TurnFractionProgress - 1, 6);
+                }
             }
 
             return false;
