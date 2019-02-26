@@ -76,6 +76,7 @@ namespace Parry
         /// Allows the AI to choose targets based on weighted criteria.
         /// When moves don't specify their own targeting behavior, AI will
         /// default to the behavior associated with the character.
+        /// Default value is <see cref="TargetBehavior.Normal"/>.
         /// </summary>
         public TargetBehavior DefaultTargetBehavior
         {

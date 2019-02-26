@@ -366,7 +366,7 @@ namespace Parry
                 return character.DefaultTargetBehavior.Perform(chars, character);
             }
 
-            return chosenMove.TargetBehavior.Perform(chars, character);
+            return chosenMove?.TargetBehavior?.Perform(chars, character) ?? new List<Character>();
         }
 
         /// <summary>
@@ -385,7 +385,7 @@ namespace Parry
                 return character.DefaultTargetBehavior.PostMovePerform(chars, character);
             }
 
-            return chosenMove.TargetBehavior.PostMovePerform(chars, character);
+            return chosenMove?.TargetBehavior?.PostMovePerform(chars, character) ?? new List<Character>();
         }
 
         /// <summary>

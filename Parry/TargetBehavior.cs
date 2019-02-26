@@ -633,7 +633,8 @@ namespace Parry
                     for (int j = 0; j < allyLastRound.MoveSelectBehavior.ChosenMoves.Count; j++)
                     {
                         var move = allyLastRound.MoveSelectBehavior.ChosenMoves[j];
-                        if (move.TargetBehavior.Targets.Contains(selfLastRound) &&
+                        if (move.TargetBehavior != null &&
+                            move.TargetBehavior.Targets.Contains(selfLastRound) &&
                             (move.Motives.Contains(Constants.Motives.DamageHealth) ||
                             move.Motives.Contains(Constants.Motives.Weaken)))
                         {

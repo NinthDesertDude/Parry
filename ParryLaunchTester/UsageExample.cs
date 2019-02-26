@@ -155,10 +155,7 @@ namespace ParryLaunchTester
                     player.DefaultTargetBehavior.OverrideTargets.Add(enemiess.FirstOrDefault(
                         o => o.CombatStats.CustomStats["name"] as string == targetNamess[choice - 1]));
 
-                    while (session.NextTurn())
-                    {
-                        session.ExecuteTurn();
-                    }
+                    session.ExecuteRound();
                     if (!session.NextRound())
                     {
                         break;
@@ -172,11 +169,7 @@ namespace ParryLaunchTester
                     player.CombatMoveSelectEnabled.Data = false;
                     player.CombatTargetingEnabled.Data = false;
 
-                    while (session.HasNextTurn())
-                    {
-                        session.NextTurn();
-                        session.ExecuteTurn();
-                    }
+                    session.ExecuteRound();
                     if (!session.NextRound())
                     {
                         break;
