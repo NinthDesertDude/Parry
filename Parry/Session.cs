@@ -102,8 +102,8 @@ namespace Parry
         }
 
         /// <summary>
-        /// When true, the minimum speed among all characters is subtracted
-        /// from each character's speed last round, and the remainder is added
+        /// When true, the maximum speed delay among all characters is subtracted
+        /// from each character's speed delay last round, and the remainder is added
         /// to the next round.
         /// False by default.
         /// </summary>
@@ -237,25 +237,25 @@ namespace Parry
 
             chars[0].ForEach(o =>
             {
-                o.CharStats.Speed = o.CombatStats.MoveSpeed.Data;
-                if (o.MoveSelectBehavior.Perform(chars) != null)
+                o.CharStats.SpeedDelay = -o.CombatStats.MoveSpeed.Data;
+                if (o.MoveSelectBehavior.Perform(chars).Count != 0)
                 {
-                    o.CharStats.Speed += o.MoveSelectBehavior.ChosenMove.MoveSpeed;
+                    o.CharStats.SpeedDelay += o.MoveSelectBehavior.ChosenMoves.Sum(p => p.MoveSpeedDelay);
                 }
             });
 
-            int minSpeed = chars[0].Min(o => o.CharStats.Speed);
+            int maxDelay = chars[0].Max(o => o.CharStats.SpeedDelay);
             chars[0].ForEach(o =>
             {
                 if (SpeedCarriesOver)
                 {
-                    o.CharStats.Speed += o.CharStats.AccumulatedSpeed - minSpeed;
-                    o.CharStats.AccumulatedSpeed = o.CharStats.Speed;
+                    o.CharStats.SpeedDelay += o.CharStats.AccumulatedSpeed - maxDelay;
+                    o.CharStats.AccumulatedSpeed = o.CharStats.SpeedDelay;
                 }
             });
 
             // Organizes by groups for first, normal priority, last all by speed.
-            List<Character> orderedChars = chars[0].OrderByDescending(o => o.CharStats.Speed).ToList();
+            List<Character> orderedChars = chars[0].OrderBy(o => o.CharStats.SpeedDelay).ToList();
             List<Character> firstChars = new List<Character>();
             List<Character> lastChars = new List<Character>();
             
@@ -299,19 +299,20 @@ namespace Parry
         /// <param name="session">
         /// An active combat session.
         /// </param>
-        private Tuple<float, float> PerformMovementBefore(Move chosenMove)
+        private Tuple<float, float> PerformMovementBefore()
         {
             if (!character.CombatMovementBeforeEnabled.Data)
             {
                 return character.CharStats.Location.Data;
             }
 
-            if (chosenMove?.MovementBeforeBehavior == null)
+            if (character.MoveSelectBehavior.MovementBeforeBehavior == null)
             {
-                return character.DefaultMovementBeforeBehavior.Perform(chars[0], character, chosenMove);
+                return character.DefaultMovementBeforeBehavior.Perform(chars[0], character);
             }
 
-            return chosenMove.MovementBeforeBehavior.Perform(chars[0], character, chosenMove);
+            return character.MoveSelectBehavior.MovementBeforeBehavior(character.MoveSelectBehavior.ChosenMoves)
+                .Perform(chars[0], character);
         }
 
         /// <summary>
@@ -321,19 +322,20 @@ namespace Parry
         /// <param name="session">
         /// An active combat session.
         /// </param>
-        private Tuple<float, float> PerformMovementAfter(Move chosenMove)
+        private Tuple<float, float> PerformMovementAfter()
         {
             if (!character.CombatMovementAfterEnabled.Data)
             {
                 return character.CharStats.Location.Data;
             }
 
-            if (chosenMove?.MovementAfterBehavior == null)
+            if (character.MoveSelectBehavior.MovementAfterBehavior == null)
             {
-                return character.DefaultMovementAfterBehavior.Perform(chars[0], character, chosenMove);
+                return character.DefaultMovementAfterBehavior.Perform(chars[0], character);
             }
 
-            return chosenMove.MovementAfterBehavior.Perform(chars[0], character, chosenMove);
+            return character.MoveSelectBehavior.MovementAfterBehavior(character.MoveSelectBehavior.ChosenMoves)
+                .Perform(chars[0], character);
         }
 
         /// <summary>
@@ -343,7 +345,7 @@ namespace Parry
         /// <param name="session">
         /// An active combat session.
         /// </param>
-        private Move PerformMoveSelect()
+        private List<Move> PerformMoveSelect()
         {
             return character.MoveSelectBehavior.Perform(chars);
         }
@@ -525,83 +527,6 @@ namespace Parry
         }
 
         /// <summary>
-        /// Plays each remaining turn, performing all AI decisions at the start
-        /// of the round. This is best used for turn-based games that have the
-        /// player choose their actions before the round begins, since that's
-        /// how the AI works.
-        /// </summary>
-        public void ExecuteRoundSynchronous()
-        {
-            // Takes a snapshot of all characters at the start of the round.
-            var charsSnapshot = new List<List<Character>>(chars);
-            charsSnapshot[0] = new List<Character>();
-            if (chars.Count > 0)
-            {
-                for (int i = 0; i < chars[0].Count; i++)
-                {
-                    charsSnapshot[0][i] = new Character(chars[0][i]);
-                }
-            }
-
-            RoundStarting?.Invoke();
-
-            var dict = new Dictionary<Character, Tuple<Move, List<Character>>>();
-            while (NextTurn())
-            {
-                dict.Add(character, ExecuteTurnSync1(charsSnapshot));
-            }
-
-            character = null;
-
-            while (NextTurn())
-            {
-                ExecuteTurnSync2(dict[character]);
-            }
-
-            RoundEnding?.Invoke();
-            charsInOrder.Clear();
-
-            //Adds to history.
-            if (chars.Count > 0)
-            {
-                List<Character> previousRound = new List<Character>();
-                for (int i = 0; i < chars[0].Count; i++)
-                {
-                    previousRound.Add(new Character(chars[0][i], true));
-                }
-
-                chars.Insert(1, previousRound);
-                if (chars.Count - 1 > RoundHistoryLimit)
-                {
-                    chars.RemoveAt(chars.Count - 1);
-                }
-
-                //Removes characters.
-                for (int i = 0; i < charsToRemove.Count; i++)
-                {
-                    chars[0].Remove(charsToRemove[i]);
-                    CharacterRemoved?.Invoke(charsToRemove[i]);
-                    charsToRemove[i].RaiseCharacterRemoved();
-                }
-            }
-            else
-            {
-                chars.Add(new List<Character>());
-            }
-
-            //Adds characters.
-            for (int i = 0; i < charsToAdd.Count; i++)
-            {
-                chars[0].Add(charsToAdd[i]);
-                CharacterAdded?.Invoke(charsToAdd[i]);
-                charsToAdd[i].RaiseCharacterAdded();
-            }
-
-            charsToRemove.Clear();
-            charsToAdd.Clear();
-        }
-
-        /// <summary>
         /// Plays the turn of the current character.
         /// Turn structure:
         /// - Turn begins
@@ -618,54 +543,68 @@ namespace Parry
             TurnStart?.Invoke(character);
             character.RaiseTurnStart();
 
-            // Move selection
-            Move move = PerformMoveSelect();
-            MoveSelected?.Invoke(move);
-            character.RaiseMoveSelected(move);
-
-            // Targeting
-            List<Character> targets = PerformTargeting(move);
-            TargetsSelected?.Invoke(targets);
-            character.RaiseTargetsSelected(targets);
-
-            foreach (Character target in targets)
+            List<Move> moves = PerformMoveSelect();
+            List<List<Character>> targetLists = new List<List<Character>>();
+            moves.ForEach(move =>
             {
-                target.RaiseTargeted();
-            }
+                // Move selection
+                MoveSelected?.Invoke(move);
+                character.RaiseMoveSelected(move);
+
+                // Targeting
+                List<Character> targets = PerformTargeting(move);
+                targetLists.Add(targets);
+
+                TargetsSelected?.Invoke(targets);
+                character.RaiseTargetsSelected(targets);
+
+                foreach (Character target in targets)
+                {
+                    target.RaiseTargeted();
+                }
+            });
 
             // Movement 1
-            Tuple<float, float> movementBefore = PerformMovementBefore(move);
+            Tuple<float, float> movementBefore = PerformMovementBefore();
             Tuple<float, float> oldMovement = character.CharStats.Location.Data;
             character.CharStats.Location.Data = movementBefore;
             MovementBeforeSelected?.Invoke(oldMovement);
             character.RaiseMovementBeforeSelected(oldMovement);
 
             // Re-targeting
-            List<Character> adjustedTargets = PerformAdjustTargets(move);
-            List<Character> newTargets = targets.Except(adjustedTargets).ToList();
-            TargetsSelected?.Invoke(newTargets);
-            character.RaiseTargetsSelected(newTargets);
-
-            foreach (Character target in newTargets)
+            for (int i = 0; i < moves.Count; i++)
             {
-                target.RaiseTargeted();
-            }
+                List<Character> targets = PerformAdjustTargets(moves[i]);
+                List<Character> newTargets = targetLists[i].Except(targets).ToList();
+
+                TargetsSelected?.Invoke(newTargets);
+                character.RaiseTargetsSelected(newTargets);
+
+                foreach (Character target in newTargets)
+                {
+                    target.RaiseTargeted();
+                }
+
+                targetLists[i] = targets;
+            } ;
 
             // Action
             BeforeMove?.Invoke();
             character.RaiseBeforeMove();
 
-            if (move != null)
+            for (int i = 0; i < moves.Count; i++)
             {
-                move.UsesPerTurnProgress = move.UsesPerTurn;
-                PerformMove(adjustedTargets, move);
+                moves[i].UsesPerTurnProgress = moves[i].UsesPerTurn;
+                PerformMove(targetLists[i], moves[i]);
             }
+
+            character.MoveSelectBehavior.TurnFractionLeft = 1;
 
             character.RaiseAfterMove();
             AfterMove?.Invoke();
 
             // Movement 2
-            Tuple<float, float> movementAfter = PerformMovementAfter(move);
+            Tuple<float, float> movementAfter = PerformMovementAfter();
             oldMovement = character.CharStats.Location.Data;
             character.CharStats.Location.Data = movementAfter;
             MovementAfterSelected?.Invoke(oldMovement);
@@ -680,130 +619,8 @@ namespace Parry
 
             if (!SimultaneousTurnsEnabled ||
                 charIndex == charsInOrder.Count - 1 ||
-                charsInOrder[charIndex].CharStats.Speed >
-                charsInOrder[charIndex + 1].CharStats.Speed)
-            {
-                for (int i = 0; i < chars[0].Count; i++)
-                {
-                    if (chars[0][i].CharStats.Health.Data <= 0 &&
-                        chars[0][i].CombatStats.HealthStatus.Data ==
-                        Constants.HealthStatuses.RemoveAtZero)
-                    {
-                        charsToRemove.Add(chars[0][i]);
-                    }
-                }
-
-                FlushCharacterQueue();
-            }
-        }
-
-        /// <summary>
-        /// Executes only up to re-targeting for the current character. Returns
-        /// the chosen move and targets.
-        /// Turn structure:
-        /// - Turn begins
-        /// - Motive and move are selected
-        /// - Targets are selected
-        /// - Pre-move Movement occurs
-        /// </summary>
-        /// <returns></returns>
-        private Tuple<Move, List<Character>> ExecuteTurnSync1(List<List<Character>> charsSnapshot)
-        {
-            // Start of turn
-            TurnStart?.Invoke(character);
-            character.RaiseTurnStart();
-
-            // Move selection
-            Move move = PerformMoveSelect();
-            MoveSelected?.Invoke(move);
-            character.RaiseMoveSelected(move);
-
-            // Targeting
-            List<Character> targets = PerformTargeting(move);
-            TargetsSelected?.Invoke(targets);
-            character.RaiseTargetsSelected(targets);
-
-            foreach (Character target in targets)
-            {
-                target.RaiseTargeted();
-            }
-
-            // Movement 1
-            Tuple<float, float> movementBefore = PerformMovementBefore(move);
-            Tuple<float, float> oldMovement = character.CharStats.Location.Data;
-            character.CharStats.Location.Data = movementBefore;
-            MovementBeforeSelected?.Invoke(oldMovement);
-            character.RaiseMovementBeforeSelected(oldMovement);
-
-            // Re-targeting
-            List<Character> adjustedTargets = PerformAdjustTargets(move);
-            List<Character> newTargets = targets.Except(adjustedTargets).ToList();
-
-            // 
-            List<Character> allTargets = new List<Character>(adjustedTargets);
-            allTargets.AddRange(newTargets);
-
-            for (int i = allTargets.Count - 1; i >= 0; i--)
-            {
-                double distance = Math.Sqrt(
-                    Math.Pow(character.CharStats.Location.Data.Item1 - newTargets[i].CharStats.Location.Data.Item1, 2) +
-                    Math.Pow(character.CharStats.Location.Data.Item2 - newTargets[i].CharStats.Location.Data.Item2, 2));
-
-                if (distance < character.CombatStats.MinRangeRequired.Data ||
-                    (character.CombatStats.MaxRangeAllowed.Data > 0 &&
-                    distance > character.CombatStats.MaxRangeAllowed.Data))
-                {
-                    newTargets.RemoveAt(i);
-                }
-            }
-
-            TargetsSelected?.Invoke(newTargets);
-            character.RaiseTargetsSelected(newTargets);
-
-            foreach (Character target in newTargets)
-            {
-                target.RaiseTargeted();
-            }
-
-            return new Tuple<Move, List<Character>>(move, adjustedTargets);
-        }
-
-        /// <summary>
-        /// Executes the rest of the turn for the current character, taking
-        /// their chosen move and targets.
-        /// Turn structure:
-        /// - Move executes
-        /// - Post-move Movement occurs
-        /// - Turn ends
-        /// </summary>
-        private void ExecuteTurnSync2(Tuple<Move, List<Character>> moveAndTargets)
-        {
-            // Action
-            BeforeMove?.Invoke();
-            character.RaiseBeforeMove();
-            moveAndTargets.Item1.UsesPerTurnProgress = moveAndTargets.Item1.UsesPerTurn;
-            PerformMove(moveAndTargets.Item2, moveAndTargets.Item1);
-            character.RaiseAfterMove();
-            AfterMove?.Invoke();
-
-            // Movement 2
-            Tuple<float, float> movementAfter = PerformMovementAfter(moveAndTargets.Item1);
-            Tuple<float, float> oldMovement = character.CharStats.Location.Data;
-            character.CharStats.Location.Data = movementAfter;
-            MovementAfterSelected?.Invoke(oldMovement);
-            character.RaiseMovementAfterSelected(oldMovement);
-
-            // End of turn
-            TurnEnd?.Invoke(character);
-            character.RaiseTurnEnd();
-
-            // Handles actions after each turn
-            int charIndex = charsInOrder.IndexOf(character);
-
-            if (!SimultaneousTurnsEnabled ||
-                charIndex == charsInOrder.Count - 1 ||
-                charsInOrder[charIndex].CharStats.Speed >
-                charsInOrder[charIndex + 1].CharStats.Speed)
+                charsInOrder[charIndex].CharStats.SpeedDelay >
+                charsInOrder[charIndex + 1].CharStats.SpeedDelay)
             {
                 for (int i = 0; i < chars[0].Count; i++)
                 {
@@ -890,12 +707,15 @@ namespace Parry
 
             charsToAdd.ForEach(o =>
             {
-                o.CharStats.Speed = o.CombatStats.MoveSpeed.Data
-                    + o.MoveSelectBehavior.Perform(chars).MoveSpeed;
+                o.CharStats.SpeedDelay = -o.CombatStats.MoveSpeed.Data;
+                if (o.MoveSelectBehavior.Perform(chars).Count != 0)
+                {
+                    o.CharStats.SpeedDelay += o.MoveSelectBehavior.ChosenMoves.Sum(p => p.MoveSpeedDelay);
+                }
             });
 
-            int minSpeed = (chars[0].Count > 0)
-                ? chars[0].Min(o => o.CharStats.Speed)
+            int maxDelay = (chars[0].Count > 0)
+                ? chars[0].Max(o => o.CharStats.SpeedDelay)
                 : 0;
 
             charsToAdd.ForEach(o =>
@@ -907,13 +727,13 @@ namespace Parry
 
                 if (SpeedCarriesOver)
                 {
-                    o.CharStats.Speed += o.CharStats.AccumulatedSpeed - minSpeed;
-                    o.CharStats.AccumulatedSpeed = o.CharStats.Speed;
+                    o.CharStats.SpeedDelay += o.CharStats.AccumulatedSpeed - maxDelay;
+                    o.CharStats.AccumulatedSpeed = o.CharStats.SpeedDelay;
                 }
             });
 
             charsInOrder = (chars[0].Count > 0)
-                ? chars[0].OrderByDescending(o => o.CharStats.Speed).ToList()
+                ? chars[0].OrderBy(o => o.CharStats.SpeedDelay).ToList()
                 : new List<Character>();
         }
 

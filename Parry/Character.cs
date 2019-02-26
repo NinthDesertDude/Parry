@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Parry
 {
@@ -225,7 +226,8 @@ namespace Parry
 
         /// <summary>
         /// The event raised when the character becomes the target of an attack,
-        /// before any logic is executed.
+        /// before any logic is executed. Triggers separately for every move,
+        /// even if two moves target the same player.
         /// </summary>
         public event Action Targeted;
         #endregion
@@ -381,34 +383,61 @@ namespace Parry
 
         #region Methods
         /// <summary>
-        /// If targets have been computed, returns the appropriate set of
-        /// computed targets. The chosen move's targeting behavior is preferred
-        /// to the default targeting behavior, and OverrideTargets is preferred
-        /// to Targets. If no suitable list is found, returns an empty list.
+        /// If targets have been computed, returns a copy of the appropriate set
+        /// of computed targets. The chosen move's targeting behavior is
+        /// preferred to the default targeting behavior, and OverrideTargets is
+        /// preferred to Targets. Returns a list of target lists, one for each
+        /// move. If no suitable list is found, returns an empty list. 
         /// </summary>
-        public List<Character> GetTargets()
+        public List<List<Character>> GetTargets()
         {
-            if (MoveSelectBehavior.ChosenMove?.TargetBehavior?.OverrideTargets != null)
+            List<List<Character>> targetLists = new List<List<Character>>();
+
+            for (int i = 0; i < MoveSelectBehavior.ChosenMoves.Count; i++)
             {
-                return MoveSelectBehavior.ChosenMove.TargetBehavior.OverrideTargets;
+                if (MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.OverrideTargets != null)
+                {
+                    targetLists.Add(new List<Character>(MoveSelectBehavior.ChosenMoves[i].TargetBehavior.OverrideTargets));
+                }
+
+                if (MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.Targets != null)
+                {
+                    targetLists.Add(new List<Character>(MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.Targets));
+                }
+
+                if (DefaultTargetBehavior?.OverrideTargets != null)
+                {
+                    targetLists.Add(new List<Character>(DefaultTargetBehavior.OverrideTargets));
+                }
+
+                if (DefaultTargetBehavior?.Targets != null)
+                {
+                    targetLists.Add(new List<Character>(DefaultTargetBehavior.Targets));
+                }
+
+                targetLists.Add(new List<Character>());
             }
 
-            if (MoveSelectBehavior.ChosenMove?.TargetBehavior?.Targets != null)
+            return targetLists;
+        }
+
+        /// <summary>
+        /// If targets have been computed, returns a flat list of all unique
+        /// targets. Use <see cref="GetTargets"/> to preserve information about
+        /// which move each set of targets belongs to. Use this to check e.g.
+        /// if a character is targeted.
+        /// </summary>
+        public List<Character> GetTargetsFlat()
+        {
+            List<List<Character>> targets = GetTargets();
+            List<Character> targetsFlat = new List<Character>();
+
+            for (int i = 0; i < targets.Count; i++)
             {
-                return MoveSelectBehavior.ChosenMove?.TargetBehavior?.Targets;
+                targetsFlat.AddRange(targets[i]);
             }
 
-            if (DefaultTargetBehavior?.OverrideTargets != null)
-            {
-                return DefaultTargetBehavior.OverrideTargets;
-            }
-
-            if (DefaultTargetBehavior?.Targets != null)
-            {
-                return DefaultTargetBehavior.Targets;
-            }
-
-            return new List<Character>();
+            return targetsFlat.Distinct().ToList();
         }
         #endregion
 

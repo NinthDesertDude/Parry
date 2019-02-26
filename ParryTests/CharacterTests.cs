@@ -56,39 +56,65 @@ namespace Parry.Tests
             // Ensures there are no targets to begin with.
             Character chr1 = new Character();
             chr1.TeamID = 1;
-            List<Character> targets = chr1.GetTargets();
+            chr1.MoveSelectBehavior.Moves.Add(new Move());
+            chr1.MoveSelectBehavior.Perform(new List<List<Character>>());
+            var targets = chr1.GetTargets()[0];
             Assert.IsTrue(targets.Count == 0, $"There were {targets.Count} targets instead of 0.");
 
             // Reads from default target behavior -> targets.
             chr1.DefaultTargetBehavior.Perform(
                 new List<List<Character>>() { new List<Character>() { new Character() } }, chr1);
-            targets = chr1.GetTargets();
+            targets = chr1.GetTargets()[0];
             Assert.IsTrue(targets.Count == 1, $"There were {targets.Count} targets instead of 1.");
 
             // Reads from default target behavior -> override targets.
             // Takes precedence over default target behavior -> targets.
             chr1.DefaultTargetBehavior.OverrideTargets = new List<Character>() { new Character(), new Character() };
-            targets = chr1.GetTargets();
+            targets = chr1.GetTargets()[0];
             Assert.IsTrue(targets.Count == 2, $"There were {targets.Count} targets instead of 2.");
 
             // Reads from move target behavior -> targets.
             // Takes precedence over default target behavior -> override targets.
             Move move = new Move();
+            chr1.MoveSelectBehavior.Moves.Clear();
             chr1.MoveSelectBehavior.Moves.Add(move);
             chr1.MoveSelectBehavior.Perform(new List<List<Character>>());
             move.TargetBehavior = new TargetBehavior() { MaxNumberTargets = 4 };
 
             move.TargetBehavior.Perform(
                 new List<List<Character>>() { new List<Character>() { new Character(), new Character(), new Character() } }, chr1);
-            targets = chr1.GetTargets();
+            targets = chr1.GetTargets()[0];
             Assert.IsTrue(targets.Count == 3, $"There were {targets.Count} targets instead of 3.");
 
             // Reads from move target behavior -> override targets.
             // Takes precedence over move target behavior -> targets.
             move.TargetBehavior.OverrideTargets =
                 new List<Character>() { new Character(), new Character(), new Character(), new Character() };            
-            targets = chr1.GetTargets();
+            targets = chr1.GetTargets()[0];
             Assert.IsTrue(targets.Count == 4, $"There were {targets.Count} targets instead of 4.");
+        }
+
+        /// <summary>
+        /// GetTargetsFlat() correctly combines targets from multiple moves.
+        /// </summary>
+        [TestMethod]
+        public void GetTargetsFlatTest()
+        {
+            Character chr = new Character();
+            chr.TeamID = 1;
+
+            Move move1 = new Move() { TargetBehavior = new TargetBehavior() };
+            Move move2 = new Move() { TargetBehavior = new TargetBehavior() };
+            move1.TargetBehavior.OverrideTargets = new List<Character>() { new Character() };
+            move2.TargetBehavior.OverrideTargets = new List<Character>() { new Character() };
+            chr.MoveSelectBehavior.Moves.Add(move1);
+            chr.MoveSelectBehavior.Moves.Add(move2);
+
+            chr.MoveSelectBehavior.GetMoves = (combatHistory, motives, moves) => { return moves; };
+            chr.MoveSelectBehavior.Perform(new List<List<Character>>());
+            List<Character> targets = chr.GetTargetsFlat();
+
+            Assert.IsTrue(targets.Count == 2, $"There were {targets.Count} targets instead of 2.");
         }
     }
 }

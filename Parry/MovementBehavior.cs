@@ -198,10 +198,10 @@ namespace Parry
         /// <summary>
         /// Performs the movement.
         /// </summary>
-        public Tuple<float, float> Perform(List<Character> chars, Character self, Move chosenMove)
+        public Tuple<float, float> Perform(List<Character> chars, Character self)
         {
             List<Tuple<float, float>> targets = (UseTargetingTargets)
-                ? self.GetTargets().Select(o => o.CharStats.Location.Data).ToList()
+                ? self.GetTargetsFlat().Select(o => o.CharStats.Location.Data).ToList()
                 : (Targets.Count > 0)
                 ? Targets.Select(o => o.CharStats.Location.Data).ToList()
                 : chars.Where(o => o.TeamID != self.TeamID)

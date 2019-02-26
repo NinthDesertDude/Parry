@@ -44,10 +44,11 @@ namespace Parry
         }
 
         /// <summary>
-        /// The base speed of the move. Higher speeds will cause the move to
-        /// take precedence in turn order. Default value is 0.
+        /// How long it takes to perform the move. Higher speed delays will
+        /// cause other faster moves to take precedence in turn order.
+        /// Default value is 0.
         /// </summary>
-        public int MoveSpeed
+        public int MoveSpeedDelay
         {
             get;
             set;
@@ -74,28 +75,6 @@ namespace Parry
         }
 
         /// <summary>
-        /// If non-null, this movement behavior is used instead of the
-        /// character's default pre-move behavior.
-        /// Default value is null.
-        /// </summary>
-        public MovementBehavior MovementBeforeBehavior
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// If non-null, this movement behavior is used instead of the
-        /// character's default post-move behavior.
-        /// Default value is null.
-        /// </summary>
-        public MovementBehavior MovementAfterBehavior
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
         /// The action to perform when the move is executed.
         /// Takes a list of all characters, followed by a list of the
         /// targeted characters.
@@ -114,18 +93,6 @@ namespace Parry
         /// Default value is 1.
         /// </summary>
         public float TurnFraction
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// After using a move with a turn fraction greater than 1, this is set
-        /// to the turn fraction and it falls by one each turn. At 0, the move
-        /// is performed.
-        /// Default is 0.
-        /// </summary>
-        public float TurnFractionProgress
         {
             get;
             set;
@@ -200,42 +167,36 @@ namespace Parry
 
         /// <summary>
         /// Constructs a move with defaults and the given action, which
-        /// takes a list of characters followed by a list of targets.
+        /// takes the current character, list of combat characters, and list of targets.
         /// </summary>
         public Move(Action<Character, List<Character>, List<Character>> action)
         {
             Cooldown = 0;
             CooldownProgress = 0;
             IsMoveEnabled = true;
-            MoveSpeed = 0;
+            MoveSpeedDelay = 0;
             Motives = new List<Constants.Motives>();
             TargetBehavior = null;
-            MovementBeforeBehavior = null;
-            MovementAfterBehavior = null;
             PerformAction = action;
             TurnFraction = 1;
-            TurnFractionProgress = 0;
             UsesPerTurn = 1;
             UsesPerTurnProgress = 0;
             UsesRemainingTurn = false;
         }
 
         /// <summary>
-        /// Constructs a move with all defaults.
+        /// Constructs a move with all defaults, including a default attack action.
         /// </summary>
         public Move()
         {
             Cooldown = 0;
             CooldownProgress = 0;
             IsMoveEnabled = true;
-            MoveSpeed = 0;
+            MoveSpeedDelay = 0;
             Motives = new List<Constants.Motives>();
             TargetBehavior = null;
-            MovementBeforeBehavior = null;
-            MovementAfterBehavior = null;
             PerformAction = DefaultAction;
             TurnFraction = 1;
-            TurnFractionProgress = 0;
             UsesPerTurn = 1;
             UsesPerTurnProgress = 0;
             UsesRemainingTurn = false;
@@ -246,11 +207,11 @@ namespace Parry
         /// <summary>
         /// Returns true if the move can be performed.
         /// </summary>
-        public bool CanPerform()
+        public bool CanPerform(Character current)
         {
             return IsMoveEnabled &&
                 CooldownProgress == 0 &&
-                TurnFractionProgress <= 1 &&
+                current.MoveSelectBehavior.TurnFractionLeft <= 1 &&
                 UsesPerTurnProgress > 0;
         }
 
@@ -278,14 +239,15 @@ namespace Parry
         /// </param>
         public bool Perform(Character current, List<Character> chars, List<Character> targets)
         {
-            if (CanPerform())
+            if (CanPerform(current))
             {
                 if (PerformAction != null)
                 {
                     //Manages charge-up moves.
                     if (TurnFraction > 1)
                     {
-                        TurnFractionProgress = (float)Math.Round(TurnFractionProgress + TurnFraction - 1, 6);
+                        current.MoveSelectBehavior.TurnFractionLeft = (float)Math.Round(
+                            current.MoveSelectBehavior.TurnFractionLeft + TurnFraction - 1, 6);
                     }
 
                     UsesPerTurnProgress -= 1;
@@ -300,15 +262,16 @@ namespace Parry
                     return true;
                 }
             }
-            else if (TurnFractionProgress > 0)
+            else if (current.MoveSelectBehavior.TurnFractionLeft > 0)
             {
-                if (TurnFractionProgress < 1)
+                if (current.MoveSelectBehavior.TurnFractionLeft < 1)
                 {
-                    TurnFractionProgress = 0;
+                    current.MoveSelectBehavior.TurnFractionLeft = 0;
                 }
                 else
                 {
-                    TurnFractionProgress = (float)Math.Round(TurnFractionProgress - 1, 6);
+                    current.MoveSelectBehavior.TurnFractionLeft = (float)Math.Round(
+                        current.MoveSelectBehavior.TurnFractionLeft - 1, 6);
                 }
             }
 

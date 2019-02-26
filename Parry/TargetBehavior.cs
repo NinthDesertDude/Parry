@@ -630,12 +630,17 @@ namespace Parry
                     Character allyLastRound = combatHistory[1]
                         .FirstOrDefault(o => o.Id == allies[i].Id);
 
-                    if ((allyLastRound.MoveSelectBehavior.Motive == Constants.Motives.DamageHealth ||
-                        allyLastRound.MoveSelectBehavior.Motive == Constants.Motives.LowerStats) &&
-                        allyLastRound.GetTargets().Contains(selfLastRound))
+                    for (int j = 0; j < allyLastRound.MoveSelectBehavior.ChosenMoves.Count; j++)
                     {
-                        allies.RemoveAt(i);
-                        enemies.Add(allies[i]);
+                        var move = allyLastRound.MoveSelectBehavior.ChosenMoves[j];
+                        if (move.TargetBehavior.Targets.Contains(selfLastRound) &&
+                            (move.Motives.Contains(Constants.Motives.DamageHealth) ||
+                            move.Motives.Contains(Constants.Motives.Weaken)))
+                        {
+                            allies.RemoveAt(i);
+                            enemies.Add(allies[i]);
+                            break;
+                        }
                     }
                 }
             }
@@ -756,7 +761,7 @@ namespace Parry
 
                 if (GroupAttackFactor != 0)
                 {
-                    int numTargeting = allies.Count(o => o.GetTargets().Contains(enemies[i]));
+                    int numTargeting = allies.Count(o => o.GetTargetsFlat().Contains(enemies[i]));
                     regScore += GroupAttackFactor * numTargeting;
                 }
 
@@ -872,7 +877,7 @@ namespace Parry
                     Character charLastRound = combatHistory[1]
                         .FirstOrDefault(o => o.Id == enemies[i].Id);
 
-                    if (charLastRound.GetTargets().Contains(selfLastRound))
+                    if (charLastRound.GetTargetsFlat().Contains(selfLastRound))
                     {
                         if (RetaliationBonus != 0)
                         {
@@ -891,7 +896,7 @@ namespace Parry
                         .Where(o => o.TeamID == self.TeamID)
                         .ToList();
 
-                    bool didTarget = enemies[i].GetTargets().Any(o =>
+                    bool didTarget = enemies[i].GetTargetsFlat().Any(o =>
                         alliesLastRound.Contains(o));
 
                     if (didTarget)

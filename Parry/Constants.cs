@@ -83,44 +83,24 @@
         public enum Motives
         {
             /// <summary>
-            /// The move adds an ally character. Includes moves like summoning
-            /// or calling for aid.
-            /// </summary>
-            AddAlly,
-
-            /// <summary>
-            /// The move performs a miscellaneous or one-time / story-driven
-            /// action, e.g. fleeing or collapsing the ceiling.
-            /// </summary>
-            Custom,
-
-            /// <summary>
             /// The move damages enemy targets. Includes basic attacks, but
             /// also splash damage and complicated attacks.
             /// </summary>
             DamageHealth,
 
             /// <summary>
-            /// The move equips or disequips an item.
+            /// The move lessens enemy target's stats or disadvantages them.
+            /// Includes effects like decreased chance to hit or freezing
+            /// enemies so they can't move.
             /// </summary>
-            Equip,
+            Weaken,
 
             /// <summary>
-            /// The move interacts with items on the battlefield.
+            /// The move improves self or allied target's stats or provides
+            /// them an advantage. Includes effects like a bonus to critical
+            /// hit chance or teleportation.
             /// </summary>
-            Loot,
-
-            /// <summary>
-            /// The move lessens enemy target's stats. Includes effects like
-            /// decreased chance to hit or freezing enemies so they can't move.
-            /// </summary>
-            LowerStats,
-
-            /// <summary>
-            /// The move improves allied target's stats. Includes effects like
-            /// a bonus to critical hit chance or teleportation.
-            /// </summary>
-            RaiseStats,
+            Strengthen,
 
             /// <summary>
             /// The move mitigates damage from enemy targets. Includes moves

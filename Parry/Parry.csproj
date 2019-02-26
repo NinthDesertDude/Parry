@@ -45,6 +45,7 @@
     <Compile Include="Move.cs" />
     <Compile Include="Movement.cs" />
     <Compile Include="MovementBehavior.cs" />
+    <Compile Include="MotiveWithPriority.cs" />
     <Compile Include="MoveSelector.cs" />
     <Compile Include="CharacterStats.cs" />
     <Compile Include="Stats.cs" />

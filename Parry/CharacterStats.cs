@@ -42,7 +42,7 @@ namespace Parry
         /// The speed calculated from move speed, character move speed, and
         /// the accumulated speed of previous rounds.
         /// </summary>
-        public int Speed
+        public int SpeedDelay
         {
             get;
             set;
@@ -68,7 +68,7 @@ namespace Parry
             Health = new Stat<int>(100);
             Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
             MaxHealth = new Stat<int>(100);
-            Speed = 0;
+            SpeedDelay = 0;
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Parry
             Health = new Stat<int>(other.Health.RawData);
             Location = new Stat<Tuple<float, float>>(other.Location.RawData);
             MaxHealth = new Stat<int>(other.MaxHealth.RawData);
-            Speed = other.Speed;
+            SpeedDelay = other.SpeedDelay;
         }
         #endregion
     }

@@ -155,9 +155,8 @@ namespace ParryLaunchTester
                     player.DefaultTargetBehavior.OverrideTargets.Add(enemiess.FirstOrDefault(
                         o => o.CombatStats.CustomStats["name"] as string == targetNamess[choice - 1]));
 
-                    while (session.HasNextTurn())
+                    while (session.NextTurn())
                     {
-                        session.NextTurn();
                         session.ExecuteTurn();
                     }
                     if (!session.NextRound())
