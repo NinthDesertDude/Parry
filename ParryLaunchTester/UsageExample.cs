@@ -11,7 +11,6 @@ namespace ParryLaunchTester
         {
             Console.ForegroundColor = ConsoleColor.White;
             Session session = new Session();
-            session.FreeForAllEnabled = true;
             Random rng = new Random();
 
             Out("You're walking through a dank dungeon when you encounter a bandit!", true);

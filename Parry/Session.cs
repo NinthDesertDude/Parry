@@ -65,19 +65,6 @@ namespace Parry
         }
 
         /// <summary>
-        /// When true, instead of stopping combat when there's only one team
-        /// left, each remaining character's team ID will be set to a unique
-        /// value starting at 0 and counting up. Then combat will continue
-        /// until there is only one character left or it's manually stopped.
-        /// False by default.
-        /// </summary>
-        public bool FreeForAllEnabled
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
         /// The number of previous rounds to store in memory, which enables
         /// users to create AI behavior based on previous character behaviors
         /// and performances. Can't be negative.
@@ -215,7 +202,6 @@ namespace Parry
         public Session()
         {
             ResetSession();
-            FreeForAllEnabled = false;
             SpeedCarriesOver = false;
             ExtraTurnsEnabled = false;
             SimultaneousTurnsEnabled = false;
