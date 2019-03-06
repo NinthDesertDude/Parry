@@ -105,6 +105,8 @@ namespace Parry.Tests
 
             Move move1 = new Move() { TargetBehavior = new TargetBehavior() };
             Move move2 = new Move() { TargetBehavior = new TargetBehavior() };
+            move1.TurnFraction = 0.5f;
+            move2.TurnFraction = 0.5f;
             move1.TargetBehavior.OverrideTargets = new List<Character>() { new Character() };
             move2.TargetBehavior.OverrideTargets = new List<Character>() { new Character() };
             chr.MoveSelectBehavior.Moves.Add(move1);

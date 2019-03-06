@@ -77,14 +77,14 @@ namespace Parry
         /// First argument is the zone which was entered.
         /// Second argument is the character that entered the zone.
         /// </summary>
-        public event Action<Geometry, Character> ZoneEntered;
+        public event Action<Character> ZoneEntered;
 
         /// <summary>
         /// The event raised when a character exits a zone.
         /// First argument is the zone which was exited.
         /// Second argument is the character that exited the zone.
         /// </summary>
-        public event Action<Geometry, Character> ZoneExited;
+        public event Action<Character> ZoneExited;
         #endregion
 
         #region Constructors
@@ -193,12 +193,14 @@ namespace Parry
                 if (doesIntersect && !CharactersInZone.Contains(chars[i]))
                 {
                     CharactersInZone.Add(chars[i]);
-                    ZoneEntered?.Invoke(this, chars[i]);
+                    ZoneEntered?.Invoke(chars[i]);
+                    chars[i].RaiseEnterZone(this);
                 }
                 else if (!doesIntersect && CharactersInZone.Contains(chars[i]))
                 {
                     CharactersInZone.Remove(chars[i]);
-                    ZoneExited?.Invoke(this, chars[i]);
+                    ZoneExited?.Invoke(chars[i]);
+                    chars[i].RaiseExitZone(this);
                 }
             }
 

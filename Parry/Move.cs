@@ -64,6 +64,16 @@ namespace Parry
         }
 
         /// <summary>
+        /// If true, <see cref="MoveSelector"/> will always attempt to charge
+        /// the move instead of executing it.
+        /// </summary>
+        public bool OnlyCharge
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
         /// If non-null, this targeting behavior is used instead of the
         /// character's default behavior.
         /// Default value is null.
@@ -80,6 +90,25 @@ namespace Parry
         /// targeted characters.
         /// </summary>
         public Action<Character, List<Character>, List<Character>> PerformAction
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// This is subtracted from TurnFraction when determining if a move
+        /// can be executed. This increases whenever a move is 'charged',
+        /// which is usually available only for moves that require more than
+        /// one turn to work, and decreases when a move is used with the help
+        /// of this charge fraction.
+        /// 
+        /// For example, with only 1/2 a turn left, a character can execute a
+        /// move that usually takes a full turn if that move has a charge
+        /// fraction of at least 1/2 a turn.
+        /// 
+        /// Default value is 0.
+        /// </summary>
+        public float TurnChargeFraction
         {
             get;
             set;
@@ -110,9 +139,9 @@ namespace Parry
         }
 
         /// <summary>
-        /// At the start of a turn, this is set to the uses per turn value. It
-        /// decreases by 1 for each usage in the same turn. At 0, the move
-        /// cannot be performed.
+        /// At the start of a turn, this is set to 0. It increases by 1 for
+        /// each usage in the same turn. When equal to UsesPerTurn, it cannot
+        /// be performed.
         /// Default is 0.
         /// </summary>
         public int UsesPerTurnProgress
@@ -122,7 +151,8 @@ namespace Parry
         }
 
         /// <summary>
-        /// If true, using this move ends the turn afterwards.
+        /// If true, using this move ends the turn afterwards. This doesn't
+        /// apply to charging it.
         /// False by default.
         /// </summary>
         public bool UsesRemainingTurn
@@ -179,6 +209,8 @@ namespace Parry
             TargetBehavior = null;
             PerformAction = action;
             TurnFraction = 1;
+            TurnChargeFraction = 0;
+            OnlyCharge = false;
             UsesPerTurn = 1;
             UsesPerTurnProgress = 0;
             UsesRemainingTurn = false;
@@ -197,6 +229,8 @@ namespace Parry
             TargetBehavior = null;
             PerformAction = DefaultAction;
             TurnFraction = 1;
+            TurnChargeFraction = 0;
+            OnlyCharge = false;
             UsesPerTurn = 1;
             UsesPerTurnProgress = 0;
             UsesRemainingTurn = false;
@@ -207,19 +241,20 @@ namespace Parry
         /// <summary>
         /// Returns true if the move can be performed.
         /// </summary>
-        public bool CanPerform(Character current)
+        /// <param name="current">
+        /// The character using this move.
+        /// </param>
+        public bool CanPerform()
         {
             return IsMoveEnabled &&
                 CooldownProgress == 0 &&
-                current.MoveSelectBehavior.TurnFractionLeft <= 1 &&
-                UsesPerTurnProgress > 0;
+                UsesPerTurnProgress < UsesPerTurn;
         }
 
         /// <summary>
-        /// Resets and adjusts values in the move to indicate it's the next
-        /// turn.
+        /// Clears uses per turn and decreases the cooldown.
         /// </summary>
-        public void NextTurn()
+        public void RefreshForNextTurn()
         {
             UsesPerTurnProgress = 0;
 
@@ -231,51 +266,17 @@ namespace Parry
 
         /// <summary>
         /// Performs the move with the given list of characters and targets.
-        /// Returns whether the move was performed or false if it was null or
-        /// not performable.
+        /// Use <see cref="CanPerform"/> first to test if it can be performed.
         /// </summary>
         /// <param name="chars">
         /// A list of all characters.
         /// </param>
-        public bool Perform(Character current, List<Character> chars, List<Character> targets)
+        public void Perform(Character current, List<Character> chars, List<Character> targets)
         {
-            if (CanPerform(current))
-            {
-                if (PerformAction != null)
-                {
-                    //Manages charge-up moves.
-                    if (TurnFraction > 1)
-                    {
-                        current.MoveSelectBehavior.TurnFractionLeft = (float)Math.Round(
-                            current.MoveSelectBehavior.TurnFractionLeft + TurnFraction - 1, 6);
-                    }
+            UsesPerTurnProgress++;
+            PerformAction?.Invoke(current, chars, targets);
 
-                    UsesPerTurnProgress -= 1;
-                    PerformAction(current, chars, targets);
-
-                    //Starts the cooldown period if nonzero.
-                    if (Cooldown != 0 && CooldownProgress == 0)
-                    {
-                        CooldownProgress = Cooldown;
-                    }
-
-                    return true;
-                }
-            }
-            else if (current.MoveSelectBehavior.TurnFractionLeft > 0)
-            {
-                if (current.MoveSelectBehavior.TurnFractionLeft < 1)
-                {
-                    current.MoveSelectBehavior.TurnFractionLeft = 0;
-                }
-                else
-                {
-                    current.MoveSelectBehavior.TurnFractionLeft = (float)Math.Round(
-                        current.MoveSelectBehavior.TurnFractionLeft - 1, 6);
-                }
-            }
-
-            return false;
+            CooldownProgress = Cooldown;
         }
 
         /// <summary>

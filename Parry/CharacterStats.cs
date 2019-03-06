@@ -39,8 +39,8 @@ namespace Parry
         }
 
         /// <summary>
-        /// The speed calculated from move speed, character move speed, and
-        /// the accumulated speed of previous rounds.
+        /// The delay calculated from move speed delay, character move speed
+        /// delay, and the accumulated speed delay of previous rounds.
         /// </summary>
         public int SpeedDelay
         {

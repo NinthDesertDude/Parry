@@ -380,11 +380,12 @@ namespace Parry
         /// In order to unsubscribe cleanly, the function is encapsulated
         /// here.
         /// </summary>
-        private void SubscribeGeometryZoneEntered(
-            Geometry theGeometry,
-            Character character)
+        private Action<Character> SubscribeGeometryZoneEntered(Geometry theGeometry)
         {
-            ZoneEntered?.Invoke(theGeometry, character);
+            return new Action<Character>((chr) =>
+            {
+                ZoneEntered?.Invoke(theGeometry, chr);
+            });
         }
 
         /// <summary>
@@ -393,11 +394,12 @@ namespace Parry
         /// In order to unsubscribe cleanly, the function is encapsulated
         /// here.
         /// </summary>
-        private void SubscribeGeometryZoneExited(
-            Geometry theGeometry,
-            Character character)
+        private Action<Character> SubscribeGeometryZoneExited(Geometry theGeometry)
         {
-            ZoneExited?.Invoke(theGeometry, character);
+            return new Action<Character>((chr) =>
+            {
+                ZoneExited?.Invoke(theGeometry, chr);
+            });
         }
         #endregion
 
@@ -425,8 +427,8 @@ namespace Parry
         public void AddGeometry(Geometry newGeometry)
         {
             geometry.Add(newGeometry);
-            newGeometry.ZoneEntered += SubscribeGeometryZoneEntered;
-            newGeometry.ZoneExited += SubscribeGeometryZoneExited;
+            newGeometry.ZoneEntered += SubscribeGeometryZoneEntered(newGeometry);
+            newGeometry.ZoneExited += SubscribeGeometryZoneExited(newGeometry);
         }
 
         /// <summary>
@@ -583,8 +585,6 @@ namespace Parry
                 moves[i].UsesPerTurnProgress = moves[i].UsesPerTurn;
                 PerformMove(targetLists[i], moves[i]);
             }
-
-            character.MoveSelectBehavior.TurnFractionLeft = 1;
 
             character.RaiseAfterMove();
             AfterMove?.Invoke();
@@ -759,8 +759,8 @@ namespace Parry
         /// </param>
         public bool RemoveGeometry(Geometry oldGeometry)
         {
-            oldGeometry.ZoneEntered -= SubscribeGeometryZoneEntered;
-            oldGeometry.ZoneExited -= SubscribeGeometryZoneExited;
+            oldGeometry.ZoneEntered -= SubscribeGeometryZoneEntered(oldGeometry);
+            oldGeometry.ZoneExited -= SubscribeGeometryZoneExited(oldGeometry);
             return geometry.Remove(oldGeometry);
         }
 

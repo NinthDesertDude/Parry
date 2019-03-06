@@ -11,6 +11,33 @@ namespace Parry
     {
         #region Variables
         /// <summary>
+        /// Usually, moves can only be charged if their turn fraction minus
+        /// their charge-up progress is greater than 1. When enabled, all moves
+        /// can be charged.
+        /// 
+        /// Example: If Tickle takes 1/2 a turn and Punch takes 1 turn, you
+        /// can use Tickle and fill up the remaining turn by charging Punch.
+        /// Next turn, you can use both Tickle and Punch, since both cost 1/2
+        /// a turn.
+        /// 
+        /// False by default.
+        /// </summary>
+        public bool ChargePartialMoves;
+
+        /// <summary>
+        /// Usually, all turnChargeProgress is removed from a move when it's
+        /// selected. When enabled, if a move's turnChargeProgress is larger
+        /// than its turn fraction, the remainder is preserved rather than
+        /// setting the charge back to 0.
+        /// 
+        /// Example: If Tickle takes 1/2 a turn and is charged up for 2 turns,
+        /// it would be charged up for 1.5 turns after use.
+        /// 
+        /// False by default.
+        /// </summary>
+        public bool PreserveRemainingChargeWhenMoveUsed;
+
+        /// <summary>
         /// When set, this function takes the combat history and returns a list
         /// of motives with associated weight. Don't set when overriding Motive.
         /// First argument: The combat history where index 0 is most current.
@@ -23,14 +50,15 @@ namespace Parry
         }
 
         /// <summary>
-        /// Takes the list of available moves for a chosen or calculated motive
-        /// with the combat history and returns the move to use.
+        /// Takes the list of performable moves for a chosen or calculated motive
+        /// with the combat history and returns the moves to use. Invalid moves
+        /// are removed later and only as many moves as can fit in one turn are
+        /// used, starting from the first move in the list.
         /// First argument: The combat history where index 0 is most current.
         /// Second argument: A list of MotiveWithPriority.
         /// Third argument: A list of available moves (excludes disabled,
         /// moves cooling down, etc.).
-        /// Returns: A list of moves to perform, in order if supported by the
-        /// active round execution mechanism.
+        /// Returns: A list of moves to perform.
         /// </summary>
         public Func<List<List<Character>>, List<MotiveWithPriority>, List<Move>, List<Move>> GetMoves
         {
@@ -85,22 +113,12 @@ namespace Parry
 
         /// <summary>
         /// The last move chosen by performing move selection.
-        /// Default null.
+        /// Default empty list.
         /// </summary>
         public List<Move> ChosenMoves
         {
             private set;
             get;
-        }
-
-        /// <summary>
-        /// A value from 0 to 1, where 1 is a full turn and 0 is none left.
-        /// Default value is 1.
-        /// </summary>
-        public float TurnFractionLeft
-        {
-            get;
-            set;
         }
         #endregion
 
@@ -112,6 +130,8 @@ namespace Parry
         /// </summary>
         public MoveSelector()
         {
+            ChargePartialMoves = false;
+            ChosenMoves = new List<Move>();
             GetMotives = null;
             GetMoves = new Func<List<List<Character>>, List<MotiveWithPriority>, List<Move>, List<Move>>(
                 (combatHistory, motives, moves) =>
@@ -124,8 +144,7 @@ namespace Parry
             MovementAfterBehavior = null;
             MovementBeforeBehavior = null;
             Moves = new List<Move>();
-            TurnFractionLeft = 1;
-            ChosenMoves = new List<Move>();
+            PreserveRemainingChargeWhenMoveUsed = false;
         }
 
         /// <summary>
@@ -139,6 +158,8 @@ namespace Parry
                 List<Move>,
                 List<Move>> getMoves)
         {
+            ChargePartialMoves = false;
+            ChosenMoves = new List<Move>();
             GetMotives = null;
             GetMoves = getMoves;
             Motives = new List<MotiveWithPriority>() {
@@ -147,8 +168,7 @@ namespace Parry
             MovementAfterBehavior = null;
             MovementBeforeBehavior = null;
             Moves = moves;
-            TurnFractionLeft = 1;
-            ChosenMoves = new List<Move>();
+            PreserveRemainingChargeWhenMoveUsed = false;
         }
 
         /// <summary>
@@ -156,31 +176,23 @@ namespace Parry
         /// </summary>
         public MoveSelector(MoveSelector other)
         {
+            ChargePartialMoves = other.ChargePartialMoves;
+            ChosenMoves = new List<Move>(other.ChosenMoves);
             GetMotives = other.GetMotives;
             GetMoves = other.GetMoves;
             Motives = new List<MotiveWithPriority>(other.Motives);
             MovementAfterBehavior = other.MovementAfterBehavior;
             MovementBeforeBehavior = other.MovementBeforeBehavior;
             Moves = new List<Move>(other.Moves);
-            TurnFractionLeft = other.TurnFractionLeft;
-            ChosenMoves = new List<Move>(other.ChosenMoves);
+            PreserveRemainingChargeWhenMoveUsed = other.PreserveRemainingChargeWhenMoveUsed;
         }
         #endregion
 
         #region Methods
         /// <summary>
-        /// Indicates that a turn has passed and resets the value of
-        /// <see cref="TurnFractionLeft"/>.
-        /// </summary>
-        public void NextTurn()
-        {
-            TurnFractionLeft = 1;
-        }
-
-        /// <summary>
-        /// Computes the motive if set, filters invalid moves, and selects
-        /// a move based on combat history. Returns null if no moves are
-        /// available, else returns the move and changes turn fraction left.
+        /// Computes the motive, filters invalid moves, and selects moves
+        /// based on combat history. All moves to be charged charge now, and
+        /// all moves to be performed are returned.
         /// </summary>
         /// <param name="combatHistory">
         /// The list of all characters.
@@ -190,32 +202,87 @@ namespace Parry
         /// </param>
         public List<Move> Perform(List<List<Character>> combatHistory)
         {
-            List<Move> availableMoves = Moves;
+            List<Move> filteredMoves = Moves.Where((move) => move.CanPerform()).ToList();
 
             // Gets the motive.
             if (GetMotives != null)
             {
                 Motives = GetMotives(combatHistory);
+            }
 
-                // Filters out invalid moves.
-                availableMoves = Moves.Where((move) =>
+            ChosenMoves = (GetMoves != null)
+                ? GetMoves(combatHistory, Motives, filteredMoves)
+                : new List<Move>();
+
+            float fractionOfTurnLeft = 1;
+            List<Move> excludedMoves = new List<Move>();
+
+            for (int i = 0; i < ChosenMoves.Count; i++)
+            {
+                Move move = ChosenMoves[i];
+
+                // Charging moves.
+                if (move.OnlyCharge)
                 {
-                    return move.IsMoveEnabled &&
-                        move.Cooldown == 0 &&
-                        move.UsesPerTurnProgress < move.UsesPerTurn;
-                })
-                .ToList();
+                    // Charging moves in the same round.
+                    if (fractionOfTurnLeft >= move.TurnFraction)
+                    {
+                        move.TurnChargeFraction = (float)Math.Round(
+                            move.TurnChargeFraction + move.TurnFraction, 6);
+                        fractionOfTurnLeft -= move.TurnFraction;
+                    }
+
+                    // Charging moves partially in the same round.
+                    else if (ChargePartialMoves)
+                    {
+                        move.TurnChargeFraction = (float)Math.Round(
+                            move.TurnChargeFraction + fractionOfTurnLeft, 6);
+                        fractionOfTurnLeft = 0;
+                    }
+
+                    excludedMoves.Add(move);
+                }
+
+                // Performing moves.
+                else
+                {
+                    float chargedCost = Math.Max(
+                        move.TurnFraction - move.TurnChargeFraction, 0);
+
+                    // Performing moves in the same round.
+                    if (fractionOfTurnLeft >= chargedCost)
+                    {
+                        if (!PreserveRemainingChargeWhenMoveUsed || chargedCost > 0)
+                        {
+                            move.TurnChargeFraction = 0;
+                        }
+                        else
+                        {
+                            move.TurnChargeFraction -= move.TurnFraction;
+                        }
+
+                        fractionOfTurnLeft = (!move.UsesRemainingTurn)
+                            ? fractionOfTurnLeft - chargedCost : 0;
+                    }
+
+                    // Charging moves partially in the same round.
+                    else
+                    {
+                        if (ChargePartialMoves)
+                        {
+                            move.TurnChargeFraction = (float)Math.Round(
+                                move.TurnChargeFraction + fractionOfTurnLeft, 6);
+                            fractionOfTurnLeft = 0;
+                        }
+
+                        excludedMoves.Add(move);
+                    }
+                }
             }
 
-            // Gets the move.
-            if (GetMoves != null)
-            {
-                ChosenMoves = GetMoves(combatHistory, Motives, availableMoves);
-            }
-            else
-            {
-                ChosenMoves = new List<Move>();
-            }
+            ChosenMoves = ChosenMoves
+                .Except(excludedMoves)
+                .ToList();
 
             return ChosenMoves;
         }
