@@ -531,7 +531,8 @@ namespace Parry
             TurnStart?.Invoke(character);
             character.RaiseTurnStart();
 
-            List<Move> moves = PerformMoveSelect();
+            character.MoveSelectBehavior.Moves.ForEach(o => o.RefreshForNextTurn());
+            List <Move> moves = PerformMoveSelect();
             List<List<Character>> targetLists = new List<List<Character>>();
             moves.ForEach(move =>
             {
@@ -574,7 +575,7 @@ namespace Parry
                 }
 
                 targetLists[i] = targets;
-            } ;
+            }
 
             // Action
             BeforeMove?.Invoke();
@@ -582,7 +583,6 @@ namespace Parry
 
             for (int i = 0; i < moves.Count; i++)
             {
-                moves[i].UsesPerTurnProgress = moves[i].UsesPerTurn;
                 PerformMove(targetLists[i], moves[i]);
             }
 

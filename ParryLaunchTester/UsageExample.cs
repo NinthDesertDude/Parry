@@ -17,7 +17,6 @@ namespace ParryLaunchTester
             Out("You're walking through a dank dungeon when you encounter a bandit!", true);
             Character player = GenerateCharacter("player", 0);
             player.MoveSelectBehavior.Moves.Add(new Move());
-            player.MoveSelectBehavior.Moves.Add(new Move());
             player.MoveSelectBehavior.GetMoves = (combatHistory, motives, moves) => { return moves; };
             player.DefaultMovementBeforeBehavior.Targets = new List<Character>();
             player.DefaultMovementAfterBehavior.Targets = new List<Character>();

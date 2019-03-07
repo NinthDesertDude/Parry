@@ -136,6 +136,11 @@ namespace Parry
             GetMoves = new Func<List<List<Character>>, List<MotiveWithPriority>, List<Move>, List<Move>>(
                 (combatHistory, motives, moves) =>
             {
+                if (moves == null || moves.Count == 0)
+                {
+                    return new List<Move>();
+                }
+
                 return new List<Move>() { moves.FirstOrDefault() };
             });
             Motives = new List<MotiveWithPriority>() {
@@ -220,6 +225,12 @@ namespace Parry
             for (int i = 0; i < ChosenMoves.Count; i++)
             {
                 Move move = ChosenMoves[i];
+
+                if (move == null)
+                {
+                    excludedMoves.Add(move);
+                    continue;
+                }
 
                 // Charging moves.
                 if (move.OnlyCharge)
