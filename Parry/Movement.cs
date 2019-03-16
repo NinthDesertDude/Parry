@@ -40,7 +40,7 @@ namespace Parry
         /// <summary>
         /// Creates a movement with a condition, origin and motion. When used,
         /// if the provided function returns true, the associated origin and
-        /// motion are used.
+        /// motion are used. Only the first function to return true is used.
         /// </summary>
         public Movement(Func<List<Character>, bool> function, MotionOrigin origin, Motion motion)
         {

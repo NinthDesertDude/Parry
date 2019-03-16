@@ -45,6 +45,7 @@ namespace Parry
 
         /// <summary>
         /// In combat, characters with the same team ID are on the same team.
+        /// Default value is 0.
         /// </summary>
         public int TeamID
         {
@@ -388,12 +389,31 @@ namespace Parry
         /// of computed targets. The chosen move's targeting behavior is
         /// preferred to the default targeting behavior, and OverrideTargets is
         /// preferred to Targets. Returns a list of target lists, one for each
-        /// move. If no suitable list is found, returns an empty list. 
+        /// move. Returns the default targeting behavior's override targets if
+        /// set and if no moves are set. If no suitable list is found, returns
+        /// an empty list.
         /// </summary>
         public List<List<Character>> GetTargets()
         {
             List<List<Character>> targetLists = new List<List<Character>>();
 
+            // Returns static targets if set and only if moves aren't set.
+            if (MoveSelectBehavior.ChosenMoves.Count == 0)
+            {
+                if (DefaultTargetBehavior?.OverrideTargets != null)
+                {
+                    targetLists.Add(new List<Character>(DefaultTargetBehavior.OverrideTargets));
+                }
+
+                else
+                {
+                    targetLists.Add(new List<Character>());
+                }
+
+                return targetLists;
+            }
+
+            // Returns targets as computed by moves.
             for (int i = 0; i < MoveSelectBehavior.ChosenMoves.Count; i++)
             {
                 if (MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.OverrideTargets != null)
@@ -401,22 +421,25 @@ namespace Parry
                     targetLists.Add(new List<Character>(MoveSelectBehavior.ChosenMoves[i].TargetBehavior.OverrideTargets));
                 }
 
-                if (MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.Targets != null)
+                else if (MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.Targets != null)
                 {
                     targetLists.Add(new List<Character>(MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.Targets));
                 }
 
-                if (DefaultTargetBehavior?.OverrideTargets != null)
+                else if (DefaultTargetBehavior?.OverrideTargets != null)
                 {
                     targetLists.Add(new List<Character>(DefaultTargetBehavior.OverrideTargets));
                 }
 
-                if (DefaultTargetBehavior?.Targets != null)
+                else if (DefaultTargetBehavior?.Targets != null)
                 {
                     targetLists.Add(new List<Character>(DefaultTargetBehavior.Targets));
                 }
 
-                targetLists.Add(new List<Character>());
+                else
+                {
+                    targetLists.Add(new List<Character>());
+                }
             }
 
             return targetLists;

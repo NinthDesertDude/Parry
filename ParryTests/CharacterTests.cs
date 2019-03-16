@@ -53,12 +53,18 @@ namespace Parry.Tests
         [TestMethod]
         public void GetTargetsTest()
         {
-            // Ensures there are no targets to begin with.
+            // Override targets should contribute to targets when there are no moves.
             Character chr1 = new Character();
             chr1.TeamID = 1;
+            chr1.DefaultTargetBehavior.OverrideTargets = new List<Character>() { new Character() };
+            var targets = chr1.GetTargets()[0];
+            Assert.IsTrue(targets.Count == 1, $"There were {targets.Count} targets instead of 1.");
+            chr1.DefaultTargetBehavior.OverrideTargets = null;
+
+            // Ensures there are no targets to begin with.
             chr1.MoveSelectBehavior.Moves.Add(new Move());
             chr1.MoveSelectBehavior.Perform(new List<List<Character>>());
-            var targets = chr1.GetTargets()[0];
+            targets = chr1.GetTargets()[0];
             Assert.IsTrue(targets.Count == 0, $"There were {targets.Count} targets instead of 0.");
 
             // Reads from default target behavior -> targets.
