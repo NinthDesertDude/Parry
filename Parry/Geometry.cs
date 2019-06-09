@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Parry.Combat
+namespace Parry
 {
     /// <summary>
     /// Describes a shape at specific coordinates in combat. It can be used to
@@ -14,22 +14,12 @@ namespace Parry.Combat
         /// <summary>
         /// Keeps track of all characters in the geometry.
         /// </summary>
-        public List<Character> CharactersInZone
-        {
-            get
-            {
-                return new List<Character>(CharactersInZone);
-            }
-            private set
-            {
-                CharactersInZone = value;
-            }
-        }
+        private List<Character> CharactersInZone;
 
         /// <summary>
         /// For rectangles, the height of the rectangle. Readonly.
         /// </summary>
-        public int Height
+        public float Height
         {
             get;
             private set;
@@ -38,7 +28,7 @@ namespace Parry.Combat
         /// <summary>
         /// For circles, the radius of the circle. Readonly.
         /// </summary>
-        public int Radius
+        public float Radius
         {
             get;
             private set;
@@ -56,7 +46,7 @@ namespace Parry.Combat
         /// <summary>
         /// For rectangles, the width of the rectangle. Readonly.
         /// </summary>
-        public int Width
+        public float Width
         {
             get;
             private set;
@@ -87,14 +77,14 @@ namespace Parry.Combat
         /// First argument is the zone which was entered.
         /// Second argument is the character that entered the zone.
         /// </summary>
-        public event Action<Geometry, Combatant> ZoneEntered;
+        public event Action<Character> ZoneEntered;
 
         /// <summary>
         /// The event raised when a character exits a zone.
         /// First argument is the zone which was exited.
         /// Second argument is the character that exited the zone.
         /// </summary>
-        public event Action<Geometry, Combatant> ZoneExited;
+        public event Action<Character> ZoneExited;
         #endregion
 
         #region Constructors
@@ -105,7 +95,7 @@ namespace Parry.Combat
         /// <param name="y">Vertical position on the battlefield.</param>
         /// <param name="width">Width of the rectangle.</param>
         /// <param name="height">Height of the rectangle.</param>
-        public Geometry(int x, int y, int width, int height)
+        public Geometry(float x, float y, float width, float height)
         {
             XPos = x;
             YPos = y;
@@ -113,6 +103,7 @@ namespace Parry.Combat
             Height = height;
             Radius = 0;
             Shape = Constants.GeometryShapes.Rectangle;
+            CharactersInZone = new List<Character>();
     }
 
         /// <summary>
@@ -121,7 +112,7 @@ namespace Parry.Combat
         /// <param name="x">Horizontal position on the battlefield.</param>
         /// <param name="y">Vertical position on the battlefield.</param>
         /// <param name="radius">Size of the circle.</param>
-        public Geometry(int x, int y, int radius)
+        public Geometry(float x, float y, float radius)
         {
             XPos = x;
             YPos = y;
@@ -129,10 +120,34 @@ namespace Parry.Combat
             Height = 0;
             Radius = radius;
             Shape = Constants.GeometryShapes.Circle;
+            CharactersInZone = new List<Character>();
+        }
+
+        /// <summary>
+        /// Copy constructor.
+        /// </summary>
+        public Geometry(Geometry other)
+        {
+            XPos = other.XPos;
+            YPos = other.YPos;
+            Width = other.Width;
+            Height = other.Height;
+            Radius = other.Radius;
+            Shape = other.Shape;
+            CharactersInZone = new List<Character>(other.CharactersInZone);
         }
         #endregion
 
         #region Methods
+        /// <summary>
+        /// Returns the cached list of characters in this zone. Use
+        /// IsIntersecting to refresh the cache.
+        /// </summary>
+        public List<Character> GetCharactersInZone()
+        {
+            return new List<Character>(CharactersInZone);
+        }
+
         /// <summary>
         /// Returns true if the given point is inside or on the perimeter
         /// of the geometry. Does not update characters in the boundary,
@@ -149,11 +164,11 @@ namespace Parry.Combat
             switch (Shape)
             {
                 case Constants.GeometryShapes.Circle:
-                    return (Math.Sqrt((x * x - XPos * XPos)
-                        + (y * y - YPos * YPos)) <= Radius);
+                    return Math.Sqrt(x * x - XPos * XPos
+                        + (y * y - YPos * YPos)) <= Radius;
                 case Constants.GeometryShapes.Rectangle:
-                    return (x >= XPos && x <= XPos + Width &&
-                        y >= YPos && y <= YPos + Height);
+                    return x >= XPos && x <= XPos + Width &&
+                        y >= YPos && y <= YPos + Height;
                 default:
                     return false;
             }
@@ -164,26 +179,28 @@ namespace Parry.Combat
         /// of the geometry. If a character begins or stops intersecting the
         /// geometry, triggers zone events.
         /// </summary>
-        /// <param name="characters">
+        /// <param name="chars">
         /// A list of all characters.
         /// </param>
-        public List<Character> IsIntersecting(List<Character> characters)
+        public List<Character> IsIntersecting(List<Character> chars)
         {
-            for (int i = 0; i < characters.Count; i++)
+            for (int i = 0; i < chars.Count; i++)
             {
                 bool doesIntersect = IsIntersecting(
-                    characters[i].Location.Data.Item1,
-                    characters[i].Location.Data.Item2);
+                    chars[i].CharStats.Location.Data.Item1,
+                    chars[i].CharStats.Location.Data.Item2);
 
-                if (doesIntersect && !CharactersInZone.Contains(characters[i]))
+                if (doesIntersect && !CharactersInZone.Contains(chars[i]))
                 {
-                    CharactersInZone.Add(characters[i]);
-                    ZoneEntered?.Invoke(this, characters[i]);
+                    CharactersInZone.Add(chars[i]);
+                    ZoneEntered?.Invoke(chars[i]);
+                    chars[i].RaiseEnterZone(this);
                 }
-                else if (!doesIntersect && CharactersInZone.Contains(characters[i]))
+                else if (!doesIntersect && CharactersInZone.Contains(chars[i]))
                 {
-                    CharactersInZone.Remove(characters[i]);
-                    ZoneExited?.Invoke(this, characters[i]);
+                    CharactersInZone.Remove(chars[i]);
+                    ZoneExited?.Invoke(chars[i]);
+                    chars[i].RaiseExitZone(this);
                 }
             }
 

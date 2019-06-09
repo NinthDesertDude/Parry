@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ParryLaunchTester", "ParryL
 		{7EC02C5B-B9E1-4F1B-970D-B8E99906BF13} = {7EC02C5B-B9E1-4F1B-970D-B8E99906BF13}
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ParryTests", "ParryTests\ParryTests.csproj", "{3E17DD58-D4DC-4F43-B94D-3ECD7F64237A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,8 +26,15 @@ Global
 		{305068BD-A53D-4275-B462-A8F2CEA9CBE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{305068BD-A53D-4275-B462-A8F2CEA9CBE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{305068BD-A53D-4275-B462-A8F2CEA9CBE6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3E17DD58-D4DC-4F43-B94D-3ECD7F64237A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3E17DD58-D4DC-4F43-B94D-3ECD7F64237A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3E17DD58-D4DC-4F43-B94D-3ECD7F64237A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3E17DD58-D4DC-4F43-B94D-3ECD7F64237A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {451445E6-A48A-4850-8553-DC4ED44B0785}
 	EndGlobalSection
 EndGlobal

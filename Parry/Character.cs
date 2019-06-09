@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using Parry.Combat;
+using System.Linq;
 
 namespace Parry
 {
@@ -12,30 +12,32 @@ namespace Parry
     {
         #region Properties
         /// <summary>
-        /// In combat, this is the character's total possible health.
-        /// Default value is 100.
+        /// A unique identifier between unrelated characters, though deep
+        /// copies of this character may share the same guid so they can be
+        /// directly associated.
         /// </summary>
-        public Stat<int> Health
+        private static long id = 0;
+
+        /// <summary>
+        /// A unique character ID, shared only by deep clones that copy guids.
+        /// </summary>
+        public readonly long Id;
+
+        /// <summary>
+        /// Values used in determining behavior in combat during moves,
+        /// including built-in stats for common concepts, like knockback.
+        /// </summary>
+        public CombatStats CombatStats
         {
             get;
             set;
         }
 
         /// <summary>
-        /// The character's position in combat, if you make use of
-        /// distances.
-        /// Default location is 0, 0.
+        /// Values related to a character's state in combat which cannot be
+        /// considered a combat stat, such as location or current health.
         /// </summary>
-        public Stat<Tuple<float, float>> Location
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// Contains default values for all character stats.
-        /// </summary>
-        public Stats Stats
+        public CharacterStats CharStats
         {
             get;
             set;
@@ -43,30 +45,9 @@ namespace Parry
 
         /// <summary>
         /// In combat, characters with the same team ID are on the same team.
+        /// Default value is 0.
         /// </summary>
         public int TeamID
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// True if the AI can change equipment to suit battle. No effect
-        /// if disabled for all in combat.
-        /// True by default.
-        /// </summary>
-        public Stat<bool> CanChangeEquipment
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// True if the AI can loot equipment from the ground for battle. No
-        /// effect if disabled for all in combat.
-        /// True by default.
-        /// </summary>
-        public Stat<bool> CanLootEquipment
         {
             get;
             set;
@@ -95,7 +76,8 @@ namespace Parry
         /// <summary>
         /// Allows the AI to choose targets based on weighted criteria.
         /// When moves don't specify their own targeting behavior, AI will
-        /// default to the behavior associated with the combatant.
+        /// default to the behavior associated with the character.
+        /// Default value is <see cref="TargetBehavior.Normal"/>.
         /// </summary>
         public TargetBehavior DefaultTargetBehavior
         {
@@ -115,21 +97,45 @@ namespace Parry
 
         /// <summary>
         /// Allows the AI to determine their physical movement separate from
-        /// targeting and moves. When moves don't specify their own movement
-        /// behavior, AI will default to the behavior associated with the
-        /// combatant.
+        /// targeting and moves. When moves don't specify their own pre-move
+        /// movement behavior, AI will default to the behavior associated with
+        /// the character.
         /// </summary>
-        public MovementBehavior DefaultMovementBehavior
+        public MovementBehavior DefaultMovementBeforeBehavior
         {
             get;
             set;
         }
 
         /// <summary>
-        /// When false, the character will not move and skip movement AI.
+        /// Allows the AI to determine their physical movement separate from
+        /// targeting and moves. When moves don't specify their own post-move
+        /// movement behavior, AI will default to the behavior associated with
+        /// the character.
+        /// </summary>
+        public MovementBehavior DefaultMovementAfterBehavior
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// When false, the character will skip movement AI and not move for
+        /// the movement opportunity that occurs before the move is performed.
         /// True by default.
         /// </summary>
-        public Stat<bool> CombatMovementEnabled
+        public Stat<bool> CombatMovementBeforeEnabled
+        {
+            get;
+            set;
+        }
+
+        /// <summary>
+        /// When false, the character will skip movement AI and not move for
+        /// the movement opportunity that occurs after the move is performed.
+        /// True by default.
+        /// </summary>
+        public Stat<bool> CombatMovementAfterEnabled
         {
             get;
             set;
@@ -140,19 +146,6 @@ namespace Parry
         /// True by default.
         /// </summary>
         public Stat<bool> CombatMoveEnabled
-        {
-            get;
-            set;
-        }
-
-        /// <summary>
-        /// When true, the character is removed from combat. Don't remove
-        /// characters directly, since it can affect the logic of other
-        /// characters if e.g. they depend on the number of combatants or
-        /// position in the array.
-        /// False by default.
-        /// </summary>
-        public Stat<bool> DoRemoveFromCombat
         {
             get;
             set;
@@ -193,10 +186,16 @@ namespace Parry
         public event Action<List<Character>> TargetsSelected;
 
         /// <summary>
-        /// The event raised when this character selects their movement.
+        /// The event raised when this character selects their pre-move movement.
         /// First argument is the (x, y) location to move to.
         /// </summary>
-        public event Action<Tuple<float, float>> MovementSelected;
+        public event Action<Tuple<float, float>> MovementBeforeSelected;
+
+        /// <summary>
+        /// The event raised when this character selects their post-move movement.
+        /// First argument is the (x, y) location to move to.
+        /// </summary>
+        public event Action<Tuple<float, float>> MovementAfterSelected;
 
         /// <summary>
         /// The event raised just before this character executes
@@ -229,9 +228,95 @@ namespace Parry
 
         /// <summary>
         /// The event raised when the character becomes the target of an attack,
-        /// before any logic is executed.
+        /// before any logic is executed. Triggers separately for every move,
+        /// even if two moves target the same player.
         /// </summary>
         public event Action Targeted;
+        #endregion
+
+        #region Events Called by Actions
+        /// <summary>
+        /// The event raised when a character's attack succeeds against at
+        /// least one target and is critical. This is intended to be raised by
+        /// a move action, and will only be raised if implemented.
+        /// First argument: the index corresponding to the type of damage.
+        /// Second argument: The damage before it's applied to targets.
+        /// </summary>
+        public event Action<int, float> AttackCritHit;
+
+        /// <summary>
+        /// The event raised when this character dodges an attacker. This is
+        /// intended to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The attacking character.
+        /// </summary>
+        public event Action<Character> AttackDodged;
+
+        /// <summary>
+        /// The event raised when a character's attack misses or is dodged by
+        /// a target. This is intended to be raised by a move action, and will
+        /// only be raised if implemented.
+        /// First argument: The target that dodged the attack, or null if the
+        /// character missed all targets by failing their chance to hit.
+        /// </summary>
+        public event Action<Character> AttackMissed;
+
+        /// <summary>
+        /// The event raised before a character deals damage to a target. This
+        /// is intended to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The target to receive the damage.
+        /// Second argument: The amount of damage for each type of damage.
+        /// </summary>
+        public event Action<Character, List<float>> AttackBeforeDamage;
+
+        /// <summary>
+        /// The event raised before a character takes damage. This is intended
+        /// to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The character dealing the damage.
+        /// Second argument: The amount of damage for each type of damage.
+        /// </summary>
+        public event Action<Character, List<float>> AttackBeforeReceiveDamage;
+
+        /// <summary>
+        /// The event raised after a character deals damage to a target. This
+        /// is intended to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The target that received the damage.
+        /// Second argument: The amount of damage for each type of damage.
+        /// </summary>
+        public event Action<Character, List<float>> AttackAfterDamage;
+
+        /// <summary>
+        /// The event raised before a character deals knockback damage. This is
+        /// intended to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The attacker.
+        /// Second argument: The targeted character.
+        /// Third argument: The amount of damage to deal.
+        /// </summary>
+        public event Action<Character, Character, float> AttackKnockback;
+
+        /// <summary>
+        /// The event raised before a character knocks back a target. This is
+        /// intended to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The target.
+        /// Second argument: The magnitude of recoil.
+        /// Third argument: The new location of the target.
+        /// </summary>
+        public event Action<Character, float, Tuple<float, float>> AttackRecoil;
+
+        /// <summary>
+        /// The event raised before a character is knocked back. This is
+        /// intended to be raised by a move action, and will only be raised if
+        /// implemented.
+        /// First argument: The attacker.
+        /// Second argument: The magnitude of recoil.
+        /// Third argument: The new location.
+        /// </summary>
+        public event Action<Character, float, Tuple<float, float>> AttackReceiveRecoil;
         #endregion
 
         #region Constructors
@@ -240,156 +325,257 @@ namespace Parry
         /// </summary>
         public Character()
         {
+            Id = id++;
             TeamID = 0;
-            Health = new Stat<int>(100);
-            Location = new Stat<Tuple<float, float>>(new Tuple<float, float>(0, 0));
-            Stats = new Stats();
+            CharStats = new CharacterStats();
+            CombatStats = new CombatStats();
             DefaultTargetBehavior = TargetBehavior.Normal;
             MoveSelectBehavior = new MoveSelector();
-            DefaultMovementBehavior = new MovementBehavior(true, true);
-            CanChangeEquipment = new Stat<bool>(true);
-            CanLootEquipment = new Stat<bool>(true);
+            DefaultMovementBeforeBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
+            DefaultMovementAfterBehavior = new MovementBehavior(MovementBehavior.MotionOrigin.Nearest, MovementBehavior.Motion.Towards);
             CombatMoveEnabled = new Stat<bool>(true);
-            DoRemoveFromCombat = new Stat<bool>(true);
+            CombatMoveSelectEnabled = new Stat<bool>(true);
+            CombatTargetingEnabled = new Stat<bool>(true);
+            CombatMovementBeforeEnabled = new Stat<bool>(true);
+            CombatMovementAfterEnabled = new Stat<bool>(true);
         }
 
         /// <summary>
-        /// Creates a deep copy of another profile if isDeepCopy is true, else
-        /// shallow.
+        /// Creates a shallow or deep copy of another character, generating a
+        /// new id if desired. Having characters with the same id allows for an
+        /// efficent way of identifying related clones, as with combat history.
+        /// Deep copies have no snapshots.
         /// </summary>
-        public Character(Character other, bool isDeepCopy = false)
+        public Character(Character other, bool isDeepCopy = false, bool newId = false)
         {
             if (!isDeepCopy)
             {
+                Id = (newId) ? id++ : other.Id;
                 TeamID = other.TeamID;
-                Health = other.Health;
-                Location = other.Location;
-                Stats = other.Stats;
+                CharStats = other.CharStats;
+                CombatStats = other.CombatStats;
                 DefaultTargetBehavior = other.DefaultTargetBehavior;
                 MoveSelectBehavior = other.MoveSelectBehavior;
-                DefaultMovementBehavior = other.DefaultMovementBehavior;
-                CanChangeEquipment = other.CanChangeEquipment;
-                CanLootEquipment = other.CanLootEquipment;
+                DefaultMovementBeforeBehavior = other.DefaultMovementBeforeBehavior;
+                DefaultMovementAfterBehavior = other.DefaultMovementAfterBehavior;
                 CombatMoveEnabled = other.CombatMoveEnabled;
-                DoRemoveFromCombat = other.DoRemoveFromCombat;
+                CombatMoveSelectEnabled = other.CombatMoveSelectEnabled;
+                CombatTargetingEnabled = other.CombatTargetingEnabled;
+                CombatMovementBeforeEnabled = other.CombatMovementBeforeEnabled;
+                CombatMovementAfterEnabled = other.CombatMovementAfterEnabled;
             }
             else
             {
+                Id = (newId) ? id++ : other.Id;
                 TeamID = other.TeamID;
-                Health = new Stat<int>(other.Health.Data);
-                Location = new Stat<Tuple<float, float>>(other.Location.Data);
-                Stats = new Stats(other.Stats);
+                CharStats = new CharacterStats(other.CharStats);
+                CombatStats = new CombatStats(other.CombatStats);
                 DefaultTargetBehavior = new TargetBehavior(other.DefaultTargetBehavior);
                 MoveSelectBehavior = new MoveSelector(other.MoveSelectBehavior);
-                DefaultMovementBehavior = new MovementBehavior(other.DefaultMovementBehavior);
-                CanChangeEquipment = new Stat<bool>(other.CanChangeEquipment.Data);
-                CanLootEquipment = new Stat<bool>(other.CanLootEquipment.Data);
-                CombatMoveEnabled = new Stat<bool>(other.CombatMoveEnabled.Data);
-                DoRemoveFromCombat = new Stat<bool>(other.DoRemoveFromCombat.Data);
+                DefaultMovementBeforeBehavior = new MovementBehavior(other.DefaultMovementBeforeBehavior);
+                DefaultMovementAfterBehavior = new MovementBehavior(other.DefaultMovementAfterBehavior);
+                CombatMoveEnabled = new Stat<bool>(other.CombatMoveEnabled.RawData);
+                CombatMoveSelectEnabled = new Stat<bool>(other.CombatMoveSelectEnabled.RawData);
+                CombatTargetingEnabled = new Stat<bool>(other.CombatTargetingEnabled.RawData);
+                CombatMovementBeforeEnabled = new Stat<bool>(other.CombatMovementBeforeEnabled.RawData);
+                CombatMovementAfterEnabled = new Stat<bool>(other.CombatMovementAfterEnabled.RawData);
             }
         }
         #endregion
 
-        #region Event-raising Methods
+        #region Methods
         /// <summary>
-        /// Raises the event named in the function from anywhere.
+        /// If targets have been computed, returns a copy of the appropriate set
+        /// of computed targets. The chosen move's targeting behavior is
+        /// preferred to the default targeting behavior, and OverrideTargets is
+        /// preferred to Targets. Returns a list of target lists, one for each
+        /// move. Returns the default targeting behavior's override targets if
+        /// set and if no moves are set. If no suitable list is found, returns
+        /// an empty list.
         /// </summary>
+        public List<List<Character>> GetTargets()
+        {
+            List<List<Character>> targetLists = new List<List<Character>>();
+
+            // Returns static targets if set and only if moves aren't set.
+            if (MoveSelectBehavior.ChosenMoves.Count == 0)
+            {
+                if (DefaultTargetBehavior?.OverrideTargets != null)
+                {
+                    targetLists.Add(new List<Character>(DefaultTargetBehavior.OverrideTargets));
+                }
+
+                else
+                {
+                    targetLists.Add(new List<Character>());
+                }
+
+                return targetLists;
+            }
+
+            // Returns targets as computed by moves.
+            for (int i = 0; i < MoveSelectBehavior.ChosenMoves.Count; i++)
+            {
+                if (MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.OverrideTargets != null)
+                {
+                    targetLists.Add(new List<Character>(MoveSelectBehavior.ChosenMoves[i].TargetBehavior.OverrideTargets));
+                }
+
+                else if (MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.Targets != null)
+                {
+                    targetLists.Add(new List<Character>(MoveSelectBehavior.ChosenMoves[i]?.TargetBehavior?.Targets));
+                }
+
+                else if (DefaultTargetBehavior?.OverrideTargets != null)
+                {
+                    targetLists.Add(new List<Character>(DefaultTargetBehavior.OverrideTargets));
+                }
+
+                else if (DefaultTargetBehavior?.Targets != null)
+                {
+                    targetLists.Add(new List<Character>(DefaultTargetBehavior.Targets));
+                }
+
+                else
+                {
+                    targetLists.Add(new List<Character>());
+                }
+            }
+
+            return targetLists;
+        }
+
+        /// <summary>
+        /// If targets have been computed, returns a flat list of all unique
+        /// targets. Use <see cref="GetTargets"/> to preserve information about
+        /// which move each set of targets belongs to. Use this to check e.g.
+        /// if a character is targeted.
+        /// </summary>
+        public List<Character> GetTargetsFlat()
+        {
+            List<List<Character>> targets = GetTargets();
+            List<Character> targetsFlat = new List<Character>();
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                targetsFlat.AddRange(targets[i]);
+            }
+
+            return targetsFlat.Distinct().ToList();
+        }
+        #endregion
+
+        #region Event-raising Methods
+        public void RaiseAttackCritHit(int index, float damage)
+        {
+            AttackCritHit?.Invoke(index, damage);
+        }
+
+        public void RaiseAttackDodged(Character assailant)
+        {
+            AttackDodged?.Invoke(assailant);
+        }
+
+        public void RaiseAttackMissed(Character targetMissed)
+        {
+            AttackMissed?.Invoke(targetMissed);
+        }
+
+        public void RaiseAttackBeforeDamage(Character targetHit, List<float> damage)
+        {
+            AttackBeforeDamage?.Invoke(targetHit, damage);
+        }
+
+        public void RaiseAttackBeforeReceiveDamage(Character attacker, List<float> damage)
+        {
+            AttackBeforeReceiveDamage?.Invoke(attacker, damage);
+        }
+
+        public void RaiseAttackAfterDamage(Character targetHit, List<float> damage)
+        {
+            AttackAfterDamage?.Invoke(targetHit, damage);
+        }
+
+        public void RaiseAttackKnockback(Character attacker, Character target, float damage)
+        {
+            AttackKnockback?.Invoke(attacker, target, damage);
+        }
+
+        public void RaiseAttackRecoil(Character target, float recoil, Tuple<float, float> newLocation)
+        {
+            AttackRecoil?.Invoke(target, recoil, newLocation);
+        }
+
+        public void RaiseAttackReceiveRecoil(Character attacker, float recoil, Tuple<float, float> newLocation)
+        {
+            AttackReceiveRecoil?.Invoke(attacker, recoil, newLocation);
+        }
+
         public void RaiseCharacterAdded()
         {
             CharacterAdded?.Invoke();
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseCharacterRemoved()
         {
             CharacterRemoved?.Invoke();
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseTurnStart()
         {
             TurnStart?.Invoke();
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseTurnEnd()
         {
             TurnEnd?.Invoke();
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseMoveSelected(Move move)
         {
             MoveSelected?.Invoke(move);
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
-        public void RaiseTargetsSelected(List<Combatant> targets)
+        public void RaiseTargetsSelected(List<Character> targets)
         {
             TargetsSelected?.Invoke(targets);
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
-        public void RaiseMovementSelected(Tuple<float, float> location)
+        public void RaiseMovementBeforeSelected(Tuple<float, float> location)
         {
-            MovementSelected?.Invoke(location);
+            MovementBeforeSelected?.Invoke(location);
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
+        public void RaiseMovementAfterSelected(Tuple<float, float> location)
+        {
+            MovementAfterSelected?.Invoke(location);
+        }
+
         public void RaiseBeforeMove()
         {
             BeforeMove?.Invoke();
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseAfterMove()
         {
             AfterMove?.Invoke();
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseEnterZone(Geometry zone)
         {
             EnterZone?.Invoke(zone);
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseExitZone(Geometry zone)
         {
             ExitZone?.Invoke(zone);
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseDetected()
         {
             Detected?.Invoke();
         }
 
-        /// <summary>
-        /// Raises the event named in the function from anywhere.
-        /// </summary>
         public void RaiseTargeted()
         {
             Targeted?.Invoke();

@@ -8,13 +8,6 @@ namespace Parry
     /// </summary>
     public class Stat<T>
     {
-        #region Variables
-        /// <summary>
-        /// Contains the data of the stat.
-        /// </summary>
-        private T data;
-        #endregion
-
         #region Properties
         /// <summary>
         /// Gets or sets the value and fires events.
@@ -23,20 +16,20 @@ namespace Parry
         {
             get
             {
-                OnGet?.Invoke(data);
-                return data;
+                OnGet?.Invoke(RawData);
+                return RawData;
             }
             set
             {
                 //Before set, any subscribers can cancel setting the value.
-                if (OnBeforeSet?.Invoke(data) ?? false)
+                if (OnBeforeSet?.Invoke(RawData) ?? false)
                 {
                     return;
                 }
 
                 //Sets the value, then invokes subscribers after set.
-                T oldData = data;
-                data = value;
+                T oldData = RawData;
+                RawData = value;
 
                 OnAfterSet?.Invoke(oldData);
             }
@@ -45,17 +38,7 @@ namespace Parry
         /// <summary>
         /// Gets or sets the value without firing events.
         /// </summary>
-        public T RawData
-        {
-            get
-            {
-                return data;
-            }
-            set
-            {
-                data = value;
-            }
-        }
+        public T RawData { get; set; }
         #endregion
 
         #region Events
@@ -88,7 +71,7 @@ namespace Parry
         /// </param>
         public Stat(T data)
         {
-            this.data = data;
+            this.RawData = data;
         }
         #endregion
     }

@@ -1,4 +1,4 @@
-﻿namespace Parry.Combat
+﻿namespace Parry
 {
     /// <summary>
     /// Contains a strongly-bound list of constants and enums.
@@ -59,24 +59,29 @@
         }
 
         /// <summary>
+        /// Statuses governing how a character hits targets.
+        /// </summary>
+        public enum HitStatuses
+        {
+            /// <summary>
+            /// Chance to hit and chance to dodge are computed.
+            /// </summary>
+            Normal,
+
+            /// <summary>
+            /// Skips both chance to hit and target's chance to dodge.
+            /// </summary>
+            AlwaysHit
+        }
+
+        /// <summary>
         /// Only moves matching the AI's motive will be chosen.
-        /// Values up to 20 are reserved. Extend this enum by creating one
-        /// with values of 21 and higher and casting to int when using it.
+        /// Values up to 20 are reserved for internal use. Extend this enum by
+        /// creating entries with values of 21 and higher and casting to int
+        /// when using it.
         /// </summary>
         public enum Motives
         {
-            /// <summary>
-            /// The move adds an ally combatant to combat. Includes moves
-            /// like summoning or calling for aid.
-            /// </summary>
-            AddAlly,
-
-            /// <summary>
-            /// The move performs a miscellaneous or one-time / story-driven
-            /// action, e.g. fleeing or collapsing the ceiling.
-            /// </summary>
-            Custom,
-
             /// <summary>
             /// The move damages enemy targets. Includes basic attacks, but
             /// also splash damage and complicated attacks.
@@ -84,26 +89,18 @@
             DamageHealth,
 
             /// <summary>
-            /// The move equips or disequips an item.
+            /// The move lessens enemy target's stats or disadvantages them.
+            /// Includes effects like decreased chance to hit or freezing
+            /// enemies so they can't move.
             /// </summary>
-            Equip,
+            Weaken,
 
             /// <summary>
-            /// The move interacts with items on the battlefield.
+            /// The move improves self or allied target's stats or provides
+            /// them an advantage. Includes effects like a bonus to critical
+            /// hit chance or teleportation.
             /// </summary>
-            Loot,
-
-            /// <summary>
-            /// The move lessens enemy target's stats. Includes effects like
-            /// decreased chance to hit or freezing enemies so they can't move.
-            /// </summary>
-            LowerStats,
-
-            /// <summary>
-            /// The move improves allied target's stats. Includes effects like
-            /// a bonus to critical hit chance or teleportation.
-            /// </summary>
-            RaiseStats,
+            Strengthen,
 
             /// <summary>
             /// The move mitigates damage from enemy targets. Includes moves
@@ -116,16 +113,6 @@
             /// like healing.
             /// </summary>
             RestoreHealth
-        }
-
-        /// <summary>
-        /// Whether targeting or move-selection logic is performed or
-        /// previewed.
-        /// </summary>
-        public enum PerformActions
-        {
-            Perform,
-            Preview
         }
 
         /// <summary>
@@ -157,17 +144,17 @@
         public enum TargetOverrides
         {
             /// <summary>
-            /// Targets all allies of the combatant, including self.
+            /// Targets all allies of the character, including self.
             /// </summary>
             AllAlliesAndSelf,
 
             /// <summary>
-            /// Targets all allies of the combatant, excluding self.
+            /// Targets all allies of the character, excluding self.
             /// </summary>
             AllAlliesButSelf,
 
             /// <summary>
-            /// Targets all enemies of the combatant.
+            /// Targets all enemies of the character.
             /// </summary>
             AllEnemies,
 
@@ -177,7 +164,7 @@
             Off,
 
             /// <summary>
-            /// Targets the calling combatant only.
+            /// Targets the calling character only.
             /// </summary>
             Self
         }
