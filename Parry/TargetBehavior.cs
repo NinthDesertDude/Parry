@@ -399,7 +399,7 @@ namespace Parry
         #endregion
 
         #region Variables
-        private static Random rng = new Random();
+        private static readonly Random rng = new Random();
 
         /// <summary>
         /// Limits to this many targets.
