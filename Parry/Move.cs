@@ -296,19 +296,23 @@ namespace Parry
             }
             else
             {
-                // Chance to hit.
-                if (attacker.CombatStats.PercentToHit.Data < 1 ||
-                    rng.Next(100) + 1 > attacker.CombatStats.PercentToHit.Data)
-                {
-                    attacker.RaiseAttackMissed(null);
-                    return charsHit;
-                }
-
-                // Chance for targets to dodge.
+                // Min and Max range.
                 for (int i = 0; i < targets.Count; i++)
                 {
-                    if (rng.Next(100) < targets[i].CombatStats.PercentToDodge.Data)
+                    float deltaX = attacker.CharStats.Location.Data.Item1
+                        - targets[i].CharStats.Location.Data.Item1;
+                    float deltaY = attacker.CharStats.Location.Data.Item2
+                        - targets[i].CharStats.Location.Data.Item2;
+                    double dist = Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                    if (dist < attacker.CombatStats.MinRangeRequired.Data ||
+                        dist > attacker.CombatStats.MaxRangeAllowed.Data)
                     {
+                        // Out of attack range.
+                    }
+                    else if (rng.Next(100) < targets[i].CombatStats.PercentToDodge.Data)
+                    {
+                        // Chance to dodge.
                         attacker.RaiseAttackMissed(targets[i]);
                         targets[i].RaiseAttackDodged(attacker);
                     }
@@ -317,6 +321,16 @@ namespace Parry
                         charsHit.Add(targets[i]);
                     }
                 }
+            }
+
+            // Chance to hit. This has to be done after looping potential targets, or desired attacks for characters
+            // out-of-range would raise an attack missed event erroneously if chance to hit failed.
+            if (charsHit.Count > 0 && (
+                attacker.CombatStats.PercentToHit.Data < 1 ||
+                rng.Next(100) + 1 > attacker.CombatStats.PercentToHit.Data))
+            {
+                attacker.RaiseAttackMissed(null);
+                charsHit.Clear();
             }
 
             return charsHit;

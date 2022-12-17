@@ -25,22 +25,6 @@
         }
 
         /// <summary>
-        /// Includes all possible shapes given to geometry.
-        /// </summary>
-        public enum GeometryShapes
-        {
-            /// <summary>
-            /// The shape is a rectangle based on x, y, width, height.
-            /// </summary>
-            Rectangle,
-
-            /// <summary>
-            /// The shape is a circle based on x, y, radius.
-            /// </summary>
-            Circle
-        }
-
-        /// <summary>
         /// Statuses governing how a character handles having no health.
         /// </summary>
         public enum HealthStatuses
@@ -136,37 +120,6 @@
             /// character without this status.
             /// </summary>
             AlwaysLast
-        }
-
-        /// <summary>
-        /// Statuses governing the different auto-targeting options.
-        /// </summary>
-        public enum TargetOverrides
-        {
-            /// <summary>
-            /// Targets all allies of the character, including self.
-            /// </summary>
-            AllAlliesAndSelf,
-
-            /// <summary>
-            /// Targets all allies of the character, excluding self.
-            /// </summary>
-            AllAlliesButSelf,
-
-            /// <summary>
-            /// Targets all enemies of the character.
-            /// </summary>
-            AllEnemies,
-
-            /// <summary>
-            /// Overriding combat targeting is off.
-            /// </summary>
-            Off,
-
-            /// <summary>
-            /// Targets the calling character only.
-            /// </summary>
-            Self
         }
     }
 }

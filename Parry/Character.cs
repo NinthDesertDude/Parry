@@ -210,23 +210,6 @@ namespace Parry
         public event Action AfterMove;
 
         /// <summary>
-        /// The event raised when this character enters a zone.
-        /// First argument is the zone which was entered.
-        /// </summary>
-        public event Action<Geometry> EnterZone;
-
-        /// <summary>
-        /// The event raised when this character exits a zone.
-        /// First argument is the zone which was exited.
-        /// </summary>
-        public event Action<Geometry> ExitZone;
-
-        /// <summary>
-        /// The event raised when the character becomes known to another.
-        /// </summary>
-        public event Action Detected;
-
-        /// <summary>
         /// The event raised when the character becomes the target of an attack,
         /// before any logic is executed. Triggers separately for every move,
         /// even if two moves target the same player.
@@ -559,21 +542,6 @@ namespace Parry
         public void RaiseAfterMove()
         {
             AfterMove?.Invoke();
-        }
-
-        public void RaiseEnterZone(Geometry zone)
-        {
-            EnterZone?.Invoke(zone);
-        }
-
-        public void RaiseExitZone(Geometry zone)
-        {
-            ExitZone?.Invoke(zone);
-        }
-
-        public void RaiseDetected()
-        {
-            Detected?.Invoke();
         }
 
         public void RaiseTargeted()

@@ -48,6 +48,15 @@ namespace Parry
         /// False by default.
         /// </summary>
         public bool UseTargetingTargets;
+
+        /// <summary>
+        /// Leave as null to let characters move in straight lines towards their destination, considering no obstacles.
+        /// Override to change this behavior, e.g. to adjust for pathfinding and obstacles.
+        /// 
+        /// First argument is character destination, already accounting movement speed.
+        /// Returns the destination the character ends up at.
+        /// </summary>
+        public Func<Tuple<float, float>, Tuple<float, float>> OverrideMovementHandling;
         #endregion
 
         #region Constructors
@@ -63,6 +72,7 @@ namespace Parry
             TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
             UseTargetingTargets = false;
+            OverrideMovementHandling = null;
         }
 
         /// <summary>
@@ -75,6 +85,7 @@ namespace Parry
             TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
             UseTargetingTargets = false;
+            OverrideMovementHandling = null;
         }
 
         /// <summary>
@@ -87,6 +98,7 @@ namespace Parry
             TargetLocations = new List<Tuple<float, float>>();
             DistanceRange = new Tuple<int, int>(0, 0);
             UseTargetingTargets = false;
+            OverrideMovementHandling = null;
         }
 
         /// <summary>
@@ -102,6 +114,7 @@ namespace Parry
             TargetLocations = other.TargetLocations;
             DistanceRange = other.DistanceRange;
             UseTargetingTargets = other.UseTargetingTargets;
+            OverrideMovementHandling = other.OverrideMovementHandling;
         }
         #endregion
 
@@ -360,9 +373,13 @@ namespace Parry
                     break;
             }
 
-            return new Tuple<float, float>(
+            var finalDest = new Tuple<float, float>(
                 (float)Math.Round(self.CharStats.Location.Data.Item1 + realDist * Math.Cos(intendedDir), 10),
                 (float)Math.Round(self.CharStats.Location.Data.Item2 + realDist * Math.Sin(intendedDir), 10));
+
+            return (OverrideMovementHandling == null)
+                ? finalDest
+                : OverrideMovementHandling.Invoke(finalDest);
         }
         #endregion
     }
